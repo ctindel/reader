@@ -1,0 +1,10 @@
+root: $root
+mode: dev
+logging:
+    path: $root/logs
+alpha_password: plinytheelder
+alpha_cookie: alpha
+webapp:
+    cookie_secret: blah
+database:
+    url: sqlite:///$root/db/harbor.db

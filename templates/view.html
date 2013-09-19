@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<h2>Secret Information</h2>
+
+<p>Welcome {{ current_user.get_full_name() }}
+
+<p>Your subs are: 
+{% for blog in current_user.get_blogs(False) %}
+  Blog: {{blog.get_title()}}
+  Unread Count: {{blog.get_unread_count()}}
+{% endfor %}
+
+{% endblock body %}
+
