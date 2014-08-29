@@ -1,15 +1,12 @@
 #!/usr/bin/python
 
-from flask import Flask, request, render_template, redirect, url_for, flash
+from flask import Flask, request, render_template, redirect, url_for, flash, abort
 from flask.ext.login import (LoginManager, current_user, login_required,
-                            login_user, logout_user, UserMixin, AnonymousUser,
-                            confirm_login, fresh_login_required)
+                            login_user, logout_user, UserMixin, confirm_login, fresh_login_required)
+from tools import jsonify
 import pymongo
-import userDAO
+from userDAO import UserDAO
 import re
-
-class Anonymous(AnonymousUser):
-    name = u"Anonymous"
 
 # validates that the user information is valid for new signup, return True of False
 # and fills in the error string if there is an issue
@@ -47,20 +44,49 @@ app.config.from_object(__name__)
 
 login_manager = LoginManager()
 
-login_manager.anonymous_user = Anonymous
 login_manager.login_view = "login"
 login_manager.login_message = u"Please log in to access this page."
 login_manager.refresh_view = "reauth"
 
 CONNECTION_STRING = "mongodb://localhost"
+CTINDEL_API_KEY = 'mwkMqTWFnK0LzJHyfkeBGoS2hr2KG7WhHqSGX0SbDJ4'
 connection = pymongo.MongoClient(CONNECTION_STRING)
 db = connection.reader
 
-users = userDAO.UserDAO(db)
+users = UserDAO(db)
 
-@login_manager.user_loader
-def load_user(id):
-    return users.load_user(id)
+#@login_manager.user_loader
+#def load_user(id):
+    #return users.load_user(id)
+
+@login_manager.request_loader
+def load_user_from_request(request):
+
+    # !!! Need to change this to actually validate a user
+
+    return users.load_user_by_apikey(CTINDEL_API_KEY)
+
+    # first, try to login using the api_key url arg
+    #api_key = request.args.get('api_key')
+    #if api_key:
+        #user = User.query.filter_by(api_key=api_key).first()
+        #if user:
+            #return user
+
+    # next, try to login using Basic Auth
+    #api_key = request.headers.get('Authorization')
+    #if api_key:
+        #api_key = api_key.replace('Basic ', '', 1)
+        #try:
+            #api_key = base64.b64decode(api_key)
+        #except TypeError:
+            #pass
+        #user = User.query.filter_by(api_key=api_key).first()
+        #if user:
+            #return user
+
+    # finally, return None if both methods did not login the user
+    return None
 
 login_manager.setup_app(app)
 
@@ -131,6 +157,54 @@ def logout():
     logout_user()
     flash("Logged out.")
     return redirect(url_for("index"))
+
+@app.route('/api/v1/feeds', methods=['GET'])
+def api_get_user_feeds():
+    user = users.load_user_by_apikey(request.args['apikey'])
+    feeds = current_user.get_feeds_as_dict(False)
+    return jsonify(feeds)
+
+@app.route('/api/v1/feeds/entries', methods=['GET'])
+def api_get_user_feed_entries():
+    user = users.load_user_by_apikey(request.args['apikey'])
+    feeds = current_user.get_feeds_as_dict(True)
+    return jsonify(feeds)
+
+@app.route('/api/v1/feeds/<feedid>/entries', methods=['GET'])
+def api_get_user_feed_entries_by_feed(feedid):
+    user = users.load_user_by_apikey(request.args['apikey'])
+    feeds = current_user.get_feeds_as_dict(True)
+    for f in feeds['feeds']:
+        if str(f['_id']) == str(feedid):
+            return jsonify(f)
+    abort(400)
+
+@app.route('/api/v1/feeds/<feedid>/entries/<entryid>', methods=['PUT'])
+def api_put_user_feed_entry(feedid, entryid):
+    read_val = True
+    found_entry = False
+
+    if not request.args.has_key('apikey'):
+        abort(400)
+    if not request.args.has_key('read'):
+        abort(400)
+    if 'true' == request.args['read'].lower():
+        read_val = True
+    elif 'false' == request.args['read'].lower():
+        read_val = False
+    else:
+        abort(400)
+
+    user = users.load_user_by_apikey(request.args['apikey'])
+    feeds = current_user.get_feeds(True)
+    for f in feeds:
+        if str(f.get_id()) == str(feedid):
+            print "entry_id " + entryid
+            found_entry = f.update_entry_read_val(user, entryid, read_val)
+            return 200
+
+    if not found_entry:
+        abort(400)
 
 if __name__ == "__main__":
     app.run()

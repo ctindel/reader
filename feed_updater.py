@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-import Blog
+import Feed
 
-blogs = Blog.get_all_blogs()
-for b in blogs:
+feeds = Feed.get_all_feeds()
+for b in feeds:
     b.reload()
     b.save()

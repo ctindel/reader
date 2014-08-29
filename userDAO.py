@@ -22,8 +22,8 @@ import string
 import hashlib
 import pymongo
 
-from flask.ext.login import UserMixin, AnonymousUser
-import Blog
+from flask.ext.login import UserMixin, AnonymousUserMixin
+import Feed
 
 class User(UserMixin):
     def __init__(self, db, user_map):
@@ -37,6 +37,9 @@ class User(UserMixin):
 
     def is_active(self):
         return self.active
+
+    def is_anonymous(self):
+        return False
 
     # This needs to return the email address for flask-login to work properly
     def get_id(self):
@@ -54,8 +57,15 @@ class User(UserMixin):
     def get_subs(self):
         return self.subs
 
-    def get_blogs(self, load_entries):
-        return Blog.get_user_blogs(self, load_entries)
+    def get_feeds(self, load_entries):
+        return Feed.get_user_feeds(self, load_entries)
+
+    def get_feeds_as_dict(self, load_entries):
+        feeds = self.get_feeds(load_entries)
+        feeds_dict = {'feeds' : []}
+        for f in feeds:
+            feeds_dict['feeds'].append(f.get_as_dict(load_entries)) 
+        return feeds_dict
 
 # The User Data Access Object handles all interactions with the User collection.
 class UserDAO:
@@ -92,9 +102,14 @@ class UserDAO:
 
         return user
 
+    def load_user_by_apikey(self, apikey):
+        user_map = self.user.find_one({'apikey' : apikey})
+        user = User(self.db, user_map)
+
+        return user
+
     # Validates a user login. Returns user record or None
     def validate_login(self, email, password):
-
         user = None
         try:
             user_map = self.user.find_one({'email' : email})
