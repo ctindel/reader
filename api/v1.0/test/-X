@@ -1,0 +1,99 @@
+== Info: Adding handle: conn: 0x7fad0c004000
+== Info: Adding handle: send: 0
+== Info: Adding handle: recv: 0
+== Info: Curl_addHandleToPipeline: length: 1
+== Info: - Conn 0 (0x7fad0c004000) send_pipe: 1, recv_pipe: 0
+== Info: Could not resolve host: POST
+== Info: Closing connection 0
+== Info: Adding handle: conn: 0x7fad0c004000
+== Info: Adding handle: send: 0
+== Info: Adding handle: recv: 0
+== Info: Curl_addHandleToPipeline: length: 1
+== Info: - Conn 1 (0x7fad0c004000) send_pipe: 1, recv_pipe: 0
+== Info: About to connect() to localhost port 8000 (#1)
+== Info:   Trying 127.0.0.1...
+== Info: Connected to localhost (127.0.0.1) port 8000 (#1)
+=> Send header, 151 bytes (0x97)
+0000: 50 4f 53 54 20 2f 61 70 69 2f 76 31 2e 30 2f 75 POST /api/v1.0/u
+0010: 73 65 72 2f 65 6e 72 6f 6c 6c 20 48 54 54 50 2f ser/enroll HTTP/
+0020: 31 2e 31 0d 0a 55 73 65 72 2d 41 67 65 6e 74 3a 1.1..User-Agent:
+0030: 20 63 75 72 6c 2f 37 2e 33 30 2e 30 0d 0a 48 6f  curl/7.30.0..Ho
+0040: 73 74 3a 20 6c 6f 63 61 6c 68 6f 73 74 3a 38 30 st: localhost:80
+0050: 30 30 0d 0a 41 63 63 65 70 74 3a 20 2a 2f 2a 0d 00..Accept: */*.
+0060: 0a 43 6f 6e 74 65 6e 74 2d 54 79 70 65 3a 20 61 .Content-Type: a
+0070: 70 70 6c 69 63 61 74 69 6f 6e 2f 6a 73 6f 6e 0d pplication/json.
+0080: 0a 43 6f 6e 74 65 6e 74 2d 4c 65 6e 67 74 68 3a .Content-Length:
+0090: 20 33 30 0d 0a 0d 0a                             30....
+=> Send data, 30 bytes (0x1e)
+0000: 66 69 72 73 74 4e 61 6d 65 3d 43 68 61 64 26 6c firstName=Chad&l
+0010: 61 73 74 4e 61 6d 65 3d 54 69 6e 64 65 6c       astName=Tindel
+== Info: upload completely sent off: 30 out of 30 bytes
+<= Recv header, 26 bytes (0x1a)
+0000: 48 54 54 50 2f 31 2e 31 20 34 30 30 20 42 61 64 HTTP/1.1 400 Bad
+0010: 20 52 65 71 75 65 73 74 0d 0a                    Request..
+<= Recv header, 23 bytes (0x17)
+0000: 58 2d 50 6f 77 65 72 65 64 2d 42 79 3a 20 45 78 X-Powered-By: Ex
+0010: 70 72 65 73 73 0d 0a                            press..
+<= Recv header, 33 bytes (0x21)
+0000: 58 2d 43 6f 6e 74 65 6e 74 2d 54 79 70 65 2d 4f X-Content-Type-O
+0010: 70 74 69 6f 6e 73 3a 20 6e 6f 73 6e 69 66 66 0d ptions: nosniff.
+0020: 0a                                              .
+<= Recv header, 40 bytes (0x28)
+0000: 43 6f 6e 74 65 6e 74 2d 54 79 70 65 3a 20 74 65 Content-Type: te
+0010: 78 74 2f 68 74 6d 6c 3b 20 63 68 61 72 73 65 74 xt/html; charset
+0020: 3d 75 74 66 2d 38 0d 0a                         =utf-8..
+<= Recv header, 21 bytes (0x15)
+0000: 43 6f 6e 74 65 6e 74 2d 4c 65 6e 67 74 68 3a 20 Content-Length: 
+0010: 36 34 37 0d 0a                                  647..
+<= Recv header, 37 bytes (0x25)
+0000: 44 61 74 65 3a 20 54 75 65 2c 20 33 30 20 44 65 Date: Tue, 30 De
+0010: 63 20 32 30 31 34 20 30 37 3a 30 30 3a 33 38 20 c 2014 07:00:38 
+0020: 47 4d 54 0d 0a                                  GMT..
+<= Recv header, 24 bytes (0x18)
+0000: 43 6f 6e 6e 65 63 74 69 6f 6e 3a 20 6b 65 65 70 Connection: keep
+0010: 2d 61 6c 69 76 65 0d 0a                         -alive..
+<= Recv header, 2 bytes (0x2)
+0000: 0d 0a                                           ..
+<= Recv data, 647 bytes (0x287)
+0000: 53 79 6e 74 61 78 45 72 72 6f 72 3a 20 55 6e 65 SyntaxError: Une
+0010: 78 70 65 63 74 65 64 20 74 6f 6b 65 6e 20 69 3c xpected token i<
+0020: 62 72 3e 20 26 6e 62 73 70 3b 20 26 6e 62 73 70 br> &nbsp; &nbsp
+0030: 3b 61 74 20 4f 62 6a 65 63 74 2e 70 61 72 73 65 ;at Object.parse
+0040: 20 28 6e 61 74 69 76 65 29 3c 62 72 3e 20 26 6e  (native)<br> &n
+0050: 62 73 70 3b 20 26 6e 62 73 70 3b 61 74 20 70 61 bsp; &nbsp;at pa
+0060: 72 73 65 20 28 2f 55 73 65 72 73 2f 63 74 69 6e rse (/Users/ctin
+0070: 64 65 6c 2f 73 72 63 2f 72 65 61 64 65 72 2f 61 del/src/reader/a
+0080: 70 69 2f 76 31 2e 30 2f 6e 6f 64 65 5f 6d 6f 64 pi/v1.0/node_mod
+0090: 75 6c 65 73 2f 62 6f 64 79 2d 70 61 72 73 65 72 ules/body-parser
+00a0: 2f 6c 69 62 2f 74 79 70 65 73 2f 6a 73 6f 6e 2e /lib/types/json.
+00b0: 6a 73 3a 37 36 3a 31 37 29 3c 62 72 3e 20 26 6e js:76:17)<br> &n
+00c0: 62 73 70 3b 20 26 6e 62 73 70 3b 61 74 20 2f 55 bsp; &nbsp;at /U
+00d0: 73 65 72 73 2f 63 74 69 6e 64 65 6c 2f 73 72 63 sers/ctindel/src
+00e0: 2f 72 65 61 64 65 72 2f 61 70 69 2f 76 31 2e 30 /reader/api/v1.0
+00f0: 2f 6e 6f 64 65 5f 6d 6f 64 75 6c 65 73 2f 62 6f /node_modules/bo
+0100: 64 79 2d 70 61 72 73 65 72 2f 6c 69 62 2f 72 65 dy-parser/lib/re
+0110: 61 64 2e 6a 73 3a 39 38 3a 31 38 3c 62 72 3e 20 ad.js:98:18<br> 
+0120: 26 6e 62 73 70 3b 20 26 6e 62 73 70 3b 61 74 20 &nbsp; &nbsp;at 
+0130: 49 6e 63 6f 6d 69 6e 67 4d 65 73 73 61 67 65 2e IncomingMessage.
+0140: 6f 6e 45 6e 64 20 28 2f 55 73 65 72 73 2f 63 74 onEnd (/Users/ct
+0150: 69 6e 64 65 6c 2f 73 72 63 2f 72 65 61 64 65 72 indel/src/reader
+0160: 2f 61 70 69 2f 76 31 2e 30 2f 6e 6f 64 65 5f 6d /api/v1.0/node_m
+0170: 6f 64 75 6c 65 73 2f 62 6f 64 79 2d 70 61 72 73 odules/body-pars
+0180: 65 72 2f 6e 6f 64 65 5f 6d 6f 64 75 6c 65 73 2f er/node_modules/
+0190: 72 61 77 2d 62 6f 64 79 2f 69 6e 64 65 78 2e 6a raw-body/index.j
+01a0: 73 3a 31 33 36 3a 37 29 3c 62 72 3e 20 26 6e 62 s:136:7)<br> &nb
+01b0: 73 70 3b 20 26 6e 62 73 70 3b 61 74 20 49 6e 63 sp; &nbsp;at Inc
+01c0: 6f 6d 69 6e 67 4d 65 73 73 61 67 65 2e 67 20 28 omingMessage.g (
+01d0: 65 76 65 6e 74 73 2e 6a 73 3a 31 38 30 3a 31 36 events.js:180:16
+01e0: 29 3c 62 72 3e 20 26 6e 62 73 70 3b 20 26 6e 62 )<br> &nbsp; &nb
+01f0: 73 70 3b 61 74 20 49 6e 63 6f 6d 69 6e 67 4d 65 sp;at IncomingMe
+0200: 73 73 61 67 65 2e 65 6d 69 74 20 28 65 76 65 6e ssage.emit (even
+0210: 74 73 2e 6a 73 3a 39 32 3a 31 37 29 3c 62 72 3e ts.js:92:17)<br>
+0220: 20 26 6e 62 73 70 3b 20 26 6e 62 73 70 3b 61 74  &nbsp; &nbsp;at
+0230: 20 5f 73 74 72 65 61 6d 5f 72 65 61 64 61 62 6c  _stream_readabl
+0240: 65 2e 6a 73 3a 39 34 33 3a 31 36 3c 62 72 3e 20 e.js:943:16<br> 
+0250: 26 6e 62 73 70 3b 20 26 6e 62 73 70 3b 61 74 20 &nbsp; &nbsp;at 
+0260: 70 72 6f 63 65 73 73 2e 5f 74 69 63 6b 43 61 6c process._tickCal
+0270: 6c 62 61 63 6b 20 28 6e 6f 64 65 2e 6a 73 3a 34 lback (node.js:4
+0280: 31 39 3a 31 33 29 0a                            19:13).
+== Info: Connection #1 to host localhost left intact
