@@ -6,7 +6,6 @@ TU_EMAIL_REGEX = 'testuser*';
 SP_APP_NAME = 'Reader Test';
 
 var frisby = require('frisby');
-var async = require('async');
 var tc = require('./config/test_config');
 
 frisby.create('POST missing firstName')
@@ -76,6 +75,17 @@ frisby.create('POST password missing numbers')
           { 'firstName' : TU1_FN,
             'lastName' : TU1_LN,
             'email' : TU1_EMAIL,
+            'password' : 'testUser' })
+    .expectStatus(400)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONTypes({'error' : String})
+    .toss()
+
+frisby.create('POST invalid email address')
+    .post(tc.url + '/user/enroll',
+          { 'firstName' : TU1_FN,
+            'lastName' : TU1_LN,
+            'email' : "invalid.email",
             'password' : 'testUser' })
     .expectStatus(400)
     .expectHeader('Content-Type', 'application/json; charset=utf-8')

@@ -41,7 +41,7 @@ setupTasksArray = [
         }
     },
     function dropUserFeedEntryCollection(callback) {
-        console.log("dropFeedEntryCollection");
+        console.log("dropUserFeedEntryCollection");
         user_feed_entry = reader_test_db.collection('user_feed_entry');
         if (undefined != user_feed_entry) {
             user_feed_entry.drop(function(err, reply) {

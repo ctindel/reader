@@ -11,7 +11,6 @@ logger.debug("Overriding 'Express' logger");
     //var winston = require('winston'); // for transports.Console
 
 var stormpath = require('express-stormpath');
-var sp_client = null;
 var routes = require("./app/routes");
 
 var app            = express();
@@ -67,7 +66,12 @@ app.use(express.static(__dirname + '/public'));
 routes.addAPIRouter(app, mongoose, stormpath);
 
 // !!! Only use in development/debug mode
-app.use(errorhandler)
+//app.use(errorhandler)
+
+app.use(function(req, res, next){
+  res.status(404);
+  res.json({ error: 'Invalid URL' });
+});
 
 // start app ===============================================
 // startup our app at http://localhost:8080
