@@ -91,7 +91,8 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
     { collection: 'userFeedEntry' }
     );
 
-    userFeedEntrySchema.index({userID : 1, feedID : 1, read : 1});
+    userFeedEntrySchema.index({ userID : 1, feedID : 1, 
+                                feedEntryID : 1, read : 1});
 
     var UserFeedEntryModel = mongoose.model( 'UserFeedEntry', userFeedEntrySchema );
 
