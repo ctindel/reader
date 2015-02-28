@@ -1,11 +1,13 @@
 // modules =================================================
-var logger = require("./logger");
+
+//var logger = require("./logger");
 var express        = require('express');
+require('pretty-error').start();
 var bodyParser     = require('body-parser');
 var methodOverride = require('method-override');
 var mongoose       = require('mongoose');
 
-logger.debug("Overriding 'Express' logger");
+//logger.debug("Overriding 'Express' logger");
 
     //var expressWinston = require('express-winston');
     //var winston = require('winston'); // for transports.Console
@@ -15,8 +17,8 @@ var routes = require("./app/routes");
 
 var app            = express();
 
-var morgan = require('morgan')('combined', { "stream": logger.stream });
-app.use(morgan);
+//var morgan = require('morgan')('combined', { "stream": logger.stream });
+//app.use(morgan);
 
 // config files
 var db = require('./config/db');
@@ -35,6 +37,7 @@ var port = 8000;
 
 // connect to our mongoDB database 
 mongoose.connect(db.url); 
+mongoose.set('debug', true);
 
 //app.use(function logBody(req, res, next) {
 //    console.dir(req);

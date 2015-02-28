@@ -5,7 +5,7 @@ var tc = require('./config/test_config');
 var async = require('async');
 var dbConfig = require('./config/db.js');
 
-var dilbertFeedURL = 'http://feeds.feedburner.com/DilbertDailyStrip';
+var dilbertBlogFeedURL = 'http://feed.dilbert.com/dilbert/blog';
 var nycEaterFeedURL = 'http://feeds.feedburner.com/eater/nyc';
 
 feedTestArray = [
@@ -24,7 +24,7 @@ feedTestArray = [
         var user = TEST_USERS[0];
         frisby.create('PUT Add feed sub for user ' + user.email)
             .put(tc.url + '/feeds/subscribe',
-                 {'feedURL' : dilbertFeedURL})
+                 {'feedURL' : dilbertBlogFeedURL})
             .auth(user.sp_api_key_id, user.sp_api_key_secret)
             .expectStatus(201)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
@@ -36,7 +36,7 @@ feedTestArray = [
         var user = TEST_USERS[0];
         frisby.create('PUT Add duplicate feed sub for user ' + user.email)
             .put(tc.url + '/feeds/subscribe',
-                 {'feedURL' : dilbertFeedURL})
+                 {'feedURL' : dilbertBlogFeedURL})
             .auth(user.sp_api_key_id, user.sp_api_key_secret)
             .expectStatus(201)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
@@ -68,6 +68,25 @@ feedTestArray = [
             .toss()
         callback(null);
     }
+    function getFeedsFirstUser(callback) {
+        var user = TEST_USERS[0];
+        frisby.create('GET feed list for user ' + user.email)
+            .get(tc.url + '/feeds')
+            .auth(user.sp_api_key_id, user.sp_api_key_secret)
+            .expectStatus(200)
+            .expectHeader('Content-Type', 'application/json; charset=utf-8')
+            .expectJSONLength({feeds : 2}).
+            .expectJSONTypes({'feeds', {unreadCount : Number}})
+            .afterJSON(function getSingleFeed(feeds) {
+                frisby.create('GET first feed unread entries for user ' + user.email)
+                    .get(tc.url + '/feed/' + feed[0]._id + '/entries')
+                    .auth(user.sp_api_key_id, user.sp_api_key_secret)
+                    .expectStatus(200)
+                    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+            })
+            .toss()
+        callback(null);
+    },
 ]
 
 async.series(feedTestArray);

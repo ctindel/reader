@@ -4,72 +4,102 @@ import feedparser
 import pymongo
 import bson
 import time, datetime
+import yaml
+from singletonmixin import Singleton
 
-def get_all_feeds():
-    all_feeds = []
-    connection = pymongo.Connection("mongodb://localhost", safe=True)
+class Config(Singleton):
+    def __init__(self):
+        stream = file('config/config.yaml', 'r')
+        self.config = yaml.load(stream)
+    def getDBURL(self):
+        return self.config['db']['url']
+    def getDBName(self):
+        return self.config['db']['dbName']
+
+class MDBConnection(Singleton):
+
+    def __init__(self):
+        self.config = Config.getInstance()
+        self.client = pymongo.MongoClient(self.config.getDBURL())
+        self.db = self.client[self.config.getDBName()]
+    def getDB(self):
+        return self.db
+
+def getFeeds(filterMap):
+    feeds = []
 
     # get a handle to the school database
-    db=connection.reader
+    db=MDBConnection.getInstance().getDB()
     feed_table = db.feed
     
-    cursor = feed_table.find({'enabled' : True})
+    cursor = feed_table.find(filterMap)
 
     for doc in cursor:
+        print `doc`     
         feed = Feed()
-        feed.load_from_doc(doc)
-        all_feeds.append(feed)
+        feed.loadFromDoc(doc)
+        feeds.append(feed)
 
-    return all_feeds
+    return feeds
 
-def calc_unread_count(db, user, feed):
-    feed_entry = db.feed_entry
-    user_feed_entry = db.user_feed_entry
+def getNewFeeds():
+    return getFeeds({'state' : 'new'})
 
-    ufes_false = user_feed_entry.find({'user_id' : user.get_user_id(), 
-                                       'feed_id':feed.get_id(), 'read':False})
+def getActiveFeeds():
+    return getFeeds({'state' : 'active'})
 
-    ufes_true = user_feed_entry.find({'user_id' : user.get_user_id(), 
-                                      'feed_id':feed.get_id(), 'read':True})
+def getInactiveFeeds():
+    return getFeeds({'state' : 'inactive'})
+
+def get_all_feeds():
+    return getFeeds({})
+
+def calcUnreadCount(db, user, feed):
+    feedEntry = db.feedEntry
+    userFeedEntry = db.userFeedEntry
+
+    ufes_false = userFeedEntry.find({'userID' : user.get_userID(), 
+                                       'feedID':feed.getID(), 'read':False})
+
+    ufes_true = userFeedEntry.find({'userID' : user.get_userID(), 
+                                      'feedID':feed.getID(), 'read':True})
     # Entries might be unread because they were read, and then marked 
     # unread, which means they'll have a read:False entry in the 
-    # user_feed_entry collection
+    # userFeedEntry collection
     #
-    # Or, that feed_entry might never have been seen by the user, which
-    # means they don't even have a user_feed_entry document.
+    # Or, that feedEntry might never have been seen by the user, which
+    # means they don't even have a userFeedEntry document.
     entries_marked_false = ufes_false.count()
 
     ube_array = []
     for ube in ufes_false:
         # Anything that is marked false has aleady been counted already
         # so we don't want to double count it
-        ube_array.append(ube['feed_entry_id'])
+        ube_array.append(ube['feedEntryID'])
     for ube in ufes_true:
-        ube_array.append(ube['feed_entry_id'])
-    unmarked_entries = feed_entry.find({ 'feed_id' : feed.get_id(),
+        ube_array.append(ube['feedEntryID'])
+    unmarked_entries = feedEntry.find({ 'feedID' : feed.getID(),
                                          '_id' : 
                                             { '$nin' : ube_array}}).count()
     return entries_marked_false + unmarked_entries
 
-def get_user_feeds(user, load_entries):
+def getUserFeeds(user, loadEntries):
     user_feeds = []
-    connection = pymongo.Connection("mongodb://localhost", safe=True)
 
-    # get a handle to the school database
-    db=connection.reader
+    db=MDBConnection.getInstance().getDB()
     feed = db.feed
-    feed_entry = db.feed_entry
-    user_feed_entry = db.user_feed_entry
+    feedEntry = db.feedEntry
+    userFeedEntry = db.userFeedEntry
     
     for fid in user.get_subs():
         cursor = feed.find({'_id' : fid})
 
         for doc in cursor:
             f = Feed()
-            f.load_from_doc(doc)
-            if True == load_entries:
-                f.load_entries()
-            f.set_unread_count(calc_unread_count(db, user, f))
+            f.loadFromDoc(doc)
+            if True == loadEntries:
+                f.loadEntries()
+            f.setUnreadCount(calcUnreadCount(db, user, f))
             user_feeds.append(f)
     return user_feeds
 
@@ -78,10 +108,10 @@ class FeedEntry:
         self.entry_map = {}
         self.feed = feed
 
-    def get_as_dict(self):
+    def getAsDict(self):
         return self.entry_map
 
-    def load_from_feed(self, entry):
+    def loadFromFeed(self, entry):
         if 'title' in entry:
             self.entry_map['title'] = entry.title
 
@@ -94,10 +124,10 @@ class FeedEntry:
         if 'published_parsed' in entry:
             # pymongo doesn't understand time.time so convert to  datetime.datetime
             tt = entry.published_parsed
-            self.entry_map['published_date'] = datetime.datetime(tt[0], tt[1], tt[2], tt[3], tt[4], tt[5])
+            self.entry_map['publishedDate'] = datetime.datetime(tt[0], tt[1], tt[2], tt[3], tt[4], tt[5])
 
         if 'id' in entry:
-            self.entry_map['entry_id'] = entry.id
+            self.entry_map['entryID'] = entry.id
 
         if 'summary' in entry:
             self.entry_map['summary'] = entry.summary
@@ -105,55 +135,54 @@ class FeedEntry:
         if 'content' in entry:
             self.entry_map['content'] = entry.content
 
-    def load_from_doc(self, entry_doc):
+    def loadFromDoc(self, entry_doc):
         self.entry_map = entry_doc
 
-    def get_id(self):
+    def getID(self):
         return self.entry_map['_id']
 
-    def get_title(self):
+    def getTitle(self):
         if 'title' in self.entry_map:
             return self.entry_map['title']
         return ''
 
-    def get_link(self):
+    def getLink(self):
         if 'link' in self.entry_map:
             return self.entry_map['link']
         return ''
 
-    def get_description(self):
+    def getDescription(self):
         if 'description' in self.entry_map:
             return self.entry_map['description']
         return ''
 
-    def get_published_date(self):
-        if 'published_date' in self.entry_map:
-            return self.entry_map['published_date']
+    def getPublishedDate(self):
+        if 'publishedDate' in self.entry_map:
+            return self.entry_map['publishedDate']
         return ''
 
-    def get_entry_id(self):
+    def getEntryID(self):
         if 'id' in self.entry_map:
-            return self.entry_map['entry_id']
+            return self.entry_map['entryID']
         return None
 
-    def get_summary(self):
+    def getSummary(self):
         if 'summary' in self.entry_map:
             return self.entry_map['summary']
         return ''
 
-    def get_content(self):
+    def getContent(self):
         if 'content' in self.entry_map:
             return self.entry_map['content']
         return ''
 
     def save(self):
-        connection = pymongo.Connection("mongodb://localhost", safe=True)
 
-        db=connection.reader
-        feed_entry_table = db.feed_entry
+        db = MDBConnection.getInstance().getDB()
+        feedEntry_table = db.feedEntry
 
-        self.entry_map['feed_id'] = self.feed.get_id()
-        new_doc = feed_entry_table.find_and_modify(query = {'link' : 
+        self.entry_map['feedID'] = self.feed.getID()
+        new_doc = feedEntry_table.find_and_modify(query = {'link' : 
                                                    self.entry_map['link']}, 
                                                    update = self.entry_map, 
                                                    upsert = True, new = True)
@@ -161,63 +190,84 @@ class FeedEntry:
 
 class Feed:
 
+# state can be:
+#   new: It was just added by a user.  Once we
+#   validate that it is still serving content
+#   and we can grab feed entries it will move
+#   to active state.
+# active: The feed is still live and serving content
+# inactive: The feed is no longer serving content
+#   but the feed has not told us it was
+#   permanently removed.
+#   Users can still subscribe to it and read
+#   old content.  We will check to see if the
+#   feeds have come back online every so
+#   often (maybe once per day)
+
     def __init__(self):
         self.feed_map = {}
         self.entries = []
         self.unread_count = 0
+        self.feed_map['state'] = 'new'
 
-    def get_as_dict(self, include_entries):
+    def getAsDict(self, include_entries):
         if False == include_entries:
             return dict(self.feed_map.items() + {'unread_count' : self.unread_count}.items())
         else:
             entries = []
             for e in self.entries:
-                entries.append(e.get_as_dict())
+                entries.append(e.getAsDict())
             return dict(self.feed_map.items() + 
                         {'entries': entries, 'unread_count' : self.unread_count}.items())
 
-    def set_unread_count(self, count):
+    def setUnreadCount(self, count):
         self.unread_count = count
 
-    def get_unread_count(self):
+    def getUnreadCount(self):
         return self.unread_count
 
-    def load_from_doc(self, feed_doc):
+    def loadFromDoc(self, feed_doc):
         self.feed_map = feed_doc
         self.entries = []
 
-    def load_entries(self):
+    def loadEntries(self):
         self.entries = []
 
-        connection = pymongo.Connection("mongodb://localhost", safe=True)
+        db = MDBConnection.getInstance().getDB()
 
-        db=connection.reader
-        feed_entry_table = db.feed_entry
+        feedEntry_table = db.feedEntry
     
-        cursor = feed_entry_table.find({'feed_id' : self.feed_map['_id']})
+        cursor = feedEntry_table.find({'feedID' : self.feed_map['_id']})
 
         for doc in cursor:
             entry = FeedEntry(self)
-            entry.load_from_doc(doc)
+            entry.loadFromDoc(doc)
             self.entries.append(entry)
 
-    def load_from_feedparser(self, d):
+    def loadFromFeedparser(self, d):
         self.entries = []
+        self.feed_map['state'] = 'active'
         if 301 == d.status:
-            self.feed_map['permanent_redirect_url'] = d.href
-        if 410 == d.status:
-            self.feed_map['permanently_removed'] = True
+            self.feed_map['permanentRedirectURL'] = d.href
+            self.feed_map['state'] = 'inactive'
+            self.feed_map['error'] = 'Permanently Redirected'
+        elif 410 == d.status:
+            self.feed_map['permanentlyRemoved'] = True
             self.feed_map['enabled'] = False
-        if 401 == d.status:
-            self.feed_map['requires_authentication'] = True
+            self.feed_map['state'] = 'inactive'
+            self.feed_map['error'] = 'Permanently Removed'
+        elif 401 == d.status:
+            self.feed_map['requiresAuthentication'] = True
             self.feed_map['enabled'] = False
+            self.feed_map['state'] = 'inactive'
+            self.feed_map['error'] = 'Requires Authentication'
         if d.bozo:
-            self.feed_map['bozo_bit_set'] = True
+            self.feed_map['bozoBitSet'] = True
 
         if d.entries:
             for i in range(len(d.entries)):
                 entry = FeedEntry(self)
-                entry.load_from_feed(d.entries[i])
+                entry.loadFromFeed(d.entries[i])
                 self.entries.append(entry)
 
         if 'etag' in d:
@@ -226,7 +276,7 @@ class Feed:
         if 'modified_parsed' in d:
             tt = d.modified_parsed
             # pymongo doesn't understand time.time so convert to  datetime.datetime
-            self.feed_map['modified_date'] = datetime.datetime(tt[0], tt[1], tt[2], tt[3], tt[4], tt[5])
+            self.feed_map['modifiedDate'] = datetime.datetime(tt[0], tt[1], tt[2], tt[3], tt[4], tt[5])
 
         if 'title' in d.feed:
             self.feed_map['title'] = d.feed.title
@@ -235,170 +285,168 @@ class Feed:
         if 'description' in d.feed:
             self.feed_map['description'] = d.feed.description
         if 'image' in d.feed:
-            self.feed_map['image_url'] = d.feed.image
+            self.feed_map['imageURL'] = d.feed.image
         if 'published_parsed' in d.feed:
             tt = d.feed.published_parsed
-            self.feed_map['published_date'] = datetime.datetime(tt[0], tt[1], tt[2], tt[3], tt[4], tt[5])
+            self.feed_map['publishedDate'] = datetime.datetime(tt[0], tt[1], tt[2], tt[3], tt[4], tt[5])
 
     def reload(self):
-        d = feedparser.parse(self.feed_map['feed_url'])
-        self.load_from_feedparser(d)
+        d = feedparser.parse(self.feed_map['feedURL'])
+        self.loadFromFeedparser(d)
 
-    def load_from_url(self, feed_url):
-        self.feed_map['feed_url'] = feed_url
-        self.feed_map['permanent_redirect_url'] = None
-        self.feed_map['permanently_removed'] = False
-        self.feed_map['requires_authentication'] = False
-        self.feed_map['bozo_bit_set'] = False
-        self.feed_map['enabled'] = True
+    def loadFromURL(self, feedURL):
+        self.feed_map['feedURL'] = feedURL
+        self.feed_map['permanentRedirectURL'] = None
+        self.feed_map['permanentlyRemoved'] = False
+        self.feed_map['requiresAuthentication'] = False
+        self.feed_map['bozoBitSet'] = False
 
-        d = feedparser.parse(feed_url)
-        self.load_from_feedparser(d)
+        d = feedparser.parse(feedURL)
+        self.loadFromFeedparser(d)
 
-    def is_bozo_bit_set(self):
-        return self.feed_map['permanent_redirect_url'] is not None
+    def isBozoBitSet(self):
+        return self.feed_map.has_key('bozoBitSet') and \
+               self.feed_map['bozoBitSet'] is not None
 
-    def is_permanently_redirected(self):
-        return self.feed_map['permanent_redirect_url'] is not None
+    def isPermanentlyRedirected(self):
+        return self.feed_map.has_key('permanentRedirectURL') and \
+               self.feed_map['permanentRedirectURL'] is not None
 
-    def get_permanent_redirect_url(self):
-        assert self.feed_map['permanent_redirect_url'] is not None
-        return self.feed_map['permanent_redirect_url']
+    def feedURL(self):
+        if feed_map.has_key('permanentRedirectURL'):
+            assert self.feed_map['permanentRedirectURL'] is not None
+        return self.feed_map['feedURL']
 
-    def is_permanently_removed(self):
-        return self.feed_map['permanently_removed']
+    def isPermanentlyRemoved(self):
+        return self.feed_map.has_key('permanentRedirectURL') and \
+               self.feed_map['permanentlyRemoved']
 
-    def is_authentication_required(self):
-        return self.feed_map['requires_authentication']
+    def isAuthenticationRequired(self):
+        return self.feed_map.has_key('requiresAuthentication') and \
+               self.feed_map['requiresAuthentication']
 
-    def is_enabled(self):
-        return self.feed_map['enabled']
+    def isActive(self):
+        return self.feed_map['state'] == 'active'
 
-    def get_id(self):
+    def getID(self):
         assert '_id' in self.feed_map
         return self.feed_map['_id']
 
-    def get_url(self):
-        return self.feed_map['feed_url']
+    def getURL(self):
+        return self.feed_map['feedURL']
 
-    def get_etag(self):
+    def getEtag(self):
         if 'etag' in self.feed_map:
             return self.feed_map['etag']
         return ''
 
-    def get_modified_date(self):
-        if 'modified_date' in self.feed_map:
-            return self.feed_map['modified_date']
+    def getModifiedDate(self):
+        if 'modifiedDate' in self.feed_map:
+            return self.feed_map['modifiedDate']
         return ''
 
-    def get_title(self):
+    def getTitle(self):
         if 'title' in self.feed_map:
             return self.feed_map['title']
         return ''
 
-    def get_link(self):
+    def getLink(self):
         if 'link' in self.feed_map:
             return self.feed_map['link']
         return ''
 
-    def get_description(self):
+    def getDescription(self):
         if 'description' in self.feed_map:
             return self.feed_map['description']
         return ''
 
-    def has_image_url(self):
-        return 'image_url' in self.feed_map
+    def hasImageURL(self):
+        return 'imageURL' in self.feed_map
 
-    def get_image_url(self):
-        assert self.has_image_url()
-        return self.feed_map['image_url']
+    def getImageURL(self):
+        assert self.hasImageURL()
+        return self.feed_map['imageURL']
 
-    def get_published_date(self):
-        if 'published_date' in self.feed_map:
-            return self.feed_map['published_date']
+    def getPublishedDate(self):
+        if 'publishedDate' in self.feed_map:
+            return self.feed_map['publishedDate']
         return ''
 
-    def get_entries(self):
+    def getEntries(self):
         return self.entries
 
-    def update_entry_read_val(self, user, entry_id, read_val):
-        connection = pymongo.Connection("mongodb://localhost", safe=True)
-
-        # get a handle to the school database
-        db=connection.reader
-        user_feed_entry_table = db.user_feed_entry
+    def updateEntryReadVal(self, user, entryID, read_val):
+        db = MDBConnection.getInstance().getDB()
+        userFeedEntry_table = db.userFeedEntry
 
         found_entry = False
 
-        for e in self.get_entries():
-            if str(e.get_id()) == entry_id:
+        for e in self.getEntries():
+            if str(e.getID()) == entryID:
                 found_entry = True
 
-                new_doc = user_feed_entry_table.find_and_modify(
-                    query = {'user_id' : user.get_user_id(), 'feed_id' : self.get_id(), 
-                             'feed_entry_id' : bson.objectid.ObjectId(entry_id)}, 
+                new_doc = userFeedEntry_table.find_and_modify(
+                    query = {'userID' : user.get_userID(), 'feedID' : self.getID(), 
+                             'feedEntryID' : bson.objectid.ObjectId(entryID)}, 
                     update = {'read': read_val, 
-                              'user_id' : user.get_user_id(),
-                              'feed_id' : self.get_id(),
-                              'feed_entry_id' : bson.objectid.ObjectId(entry_id)},
+                              'userID' : user.get_userID(),
+                              'feedID' : self.getID(),
+                              'feedEntryID' : bson.objectid.ObjectId(entryID)},
                     upsert = True,
                     new = True)
 
         return found_entry
         
     def save(self):
-        connection = pymongo.Connection("mongodb://localhost", safe=True)
-
-        # get a handle to the school database
-        db=connection.reader
+        db = MDBConnection.getInstance().getDB()
         feed_table = db.feed
 
-        new_doc = feed_table.find_and_modify(query = {'feed_url' : 
-                                             self.feed_map['feed_url']}, 
+        new_doc = feed_table.find_and_modify(query = {'feedURL' : 
+                                             self.feed_map['feedURL']}, 
                                              update = self.feed_map, upsert = True, new = True)
         self.feed_map = new_doc
-        for e in self.get_entries():
+        for e in self.getEntries():
             e.save()
 
-def print_feed(feed):
-    if feed.is_permanently_redirected():
-        print 'Permanent redirect to %s' % (feed.get_permanent_redirect_url())
-    if feed.is_permanently_removed():
+def printFeed(feed):
+    if feed.isPermanentlyRedirected():
+        print 'Permanent redirect to %s' % (feed.getPermanentRedirectURL())
+    if feed.isPermanentlyRemoved():
         print 'Feed has been permanently removed'
-    if feed.is_authentication_required():
+    if feed.isAuthenticationRequired():
         print 'Feed requires authentication, not yet supported'
-    if feed.is_bozo_bit_set():
+    if feed.isBozoBitSet():
         print 'BOZO BIT SET'
 
-    print 'etag: %s' % feed.get_etag()
-    print 'modified: %s ' % (feed.get_modified_date())
-    print 'Title: ' + feed.get_title().encode('ascii', 'ignore')
-    print 'Link: ' + feed.get_link()
-    print 'Description: ' + feed.get_description().encode('ascii', 'ignore')
-    if feed.has_image_url():
-        print 'Image URL: ' + feed.get_image_url()
+    print 'etag: %s' % feed.getEtag()
+    print 'modified: %s ' % (feed.getModifiedDate())
+    print 'Title: ' + feed.getTitle().encode('ascii', 'ignore')
+    print 'Link: ' + feed.getLink()
+    print 'Description: ' + feed.getDescription().encode('ascii', 'ignore')
+    if feed.hasImageURL():
+        print 'Image URL: ' + feed.getImageURL()
 
-    print 'Published: %s' % (feed.get_published_date())
+    print 'Published: %s' % (feed.getPublishedDate())
 
-    entries = feed.get_entries()
+    entries = feed.getEntries()
     print 'Num Entries %d' % len(entries)
 
     print '\n'
 
     for i in range(len(entries)):
-        print 'Entry[%d].title: %s' % (i, entries[i].get_title().encode('ascii', 'ignore'))
-        print 'Entry[%d].link: %s' % (i, entries[i].get_link())
-        print 'Entry[%d].description: %s' % (i, entries[i].get_description().encode('ascii', 'ignore'))
-        print 'Entry[%d].published: %s' % (i, entries[i].get_published_date())
-        print 'Entry[%d].id: %s' % (i, entries[i].get_entry_id())
-        print 'Entry[%d].summary: %s' % (i, entries[i].get_summary().encode('ascii', 'ignore'))
-        print 'Entry[%d].content: %s' % (i, entries[i].get_content())
+        print 'Entry[%d].title: %s' % (i, entries[i].getTitle().encode('ascii', 'ignore'))
+        print 'Entry[%d].link: %s' % (i, entries[i].getLink())
+        print 'Entry[%d].description: %s' % (i, entries[i].getDescription().encode('ascii', 'ignore'))
+        print 'Entry[%d].published: %s' % (i, entries[i].getPublishedDate())
+        print 'Entry[%d].id: %s' % (i, entries[i].getEntryID())
+        print 'Entry[%d].summary: %s' % (i, entries[i].getSummary().encode('ascii', 'ignore'))
+        print 'Entry[%d].content: %s' % (i, entries[i].getContent())
 
 
 #feed = Feed()
-#feed.load_from_url('http://feeds.feedburner.com/ImbibeUnfiltered')
-#feed.load_from_url('http://feeds.harvardbusiness.org/harvardbusiness/')
-#feed.load_from_url('http://feeds.feedburner.com/eater/nyc')
-#feed.load_from_url('http://feeds.feedburner.com/DilbertDailyStrip')
-#print_feed(feed)
+#feed.loadFromURL('http://feeds.feedburner.com/ImbibeUnfiltered')
+#feed.loadFromURL('http://feeds.harvardbusiness.org/harvardbusiness/')
+#feed.loadFromURL('http://feeds.feedburner.com/eater/nyc')
+#feed.loadFromURL('http://feeds.feedburner.com/DilbertDailyStrip')
+#printFeed(feed)
 #feed.save()
