@@ -18,7 +18,8 @@ var routes = require("./app/routes");
 var app            = express();
 
 //var morgan = require('morgan')('combined', { "stream": logger.stream });
-//app.use(morgan);
+var morgan = require('morgan');
+app.use(morgan('combined'));
 
 // config files
 var db = require('./config/db');

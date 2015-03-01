@@ -235,7 +235,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         var getUserFeedsTasks = [
             function findUser(cb) {
                 UserModel.find({'email' : req.user.email}, function(err, users) {
-                    if (err && null == resultStatus) {
+                    if (err) {
                         errStr = 'Internal error with mongoose looking user ' + req.user.email;
                         resultStatus = 400;
                         resultJSON = { error : errStr };
@@ -255,9 +255,8 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                 });
             },
             function getFeeds(cb) {
-                console.dir(user)
                 FeedModel.find().where('_id').in(user.subs).lean().exec(function getFeeds(err, userFeeds) {
-                    if (err && null == resultStatus) {
+                    if (err) {
                         errStr = 'Error finding subs for user ' + user.email;
                         resultStatus = 400;
                         resultJSON = { error : errStr };
@@ -278,12 +277,11 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
             // user/feed_entry combination, or there is a user_feed_entry document and the
             // “read” boolean is false.
             function findTrueReadUFEs(cb) {
-                logger.debug("findTrueReadUFEs");
                 state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
                     UserFeedEntryModel.find({'userID' : user._id,
                                              'feedID' : feed._id,
-                                             'read' : true}, function getFeeds(err, ufes) {
-                        if (err && null == resultStatus) {
+                                             'read' : true}, function getFeedEntries(err, ufes) {
+                        if (err) {
                             errStr = 'Error finding true read UFEs for ' + user.email;
                             resultStatus = 400;
                             resultJSON = { error : errStr };
@@ -291,8 +289,6 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                             cb(new Error(errStr));
                         }
                         state.feeds[feedIndex].ufesTrue = ufes;
-                        logger.debug("array length = " + feedArray.length)
-                        logger.debug("index = " + feedIndex)
                         if (feedIndex == feedArray.length - 1) {
                             cb(null);
                         }
@@ -300,12 +296,11 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                 });
             },
             function findFalseReadUFEs(cb) {
-                logger.debug("findFalseReadUFEs");
                 state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
                     UserFeedEntryModel.find({'userID' : user._id,
                                              'feedID' : feed._id,
-                                             'read' : false}, function getFeeds(err, ufes) {
-                        if (err && null == resultStatus) {
+                                             'read' : false}, function getFeedEntries(err, ufes) {
+                        if (err) {
                             errStr = 'Error finding false read UFEs for ' + user.email;
                             resultStatus = 400;
                             resultJSON = { error : errStr };
@@ -320,7 +315,6 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                 });
             },
             function getUnmarkedUFEsCount(cb) {
-                logger.debug("getUnmarkedUFEsCount");
                 state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
                     state.feeds[feedIndex].falseEntryCount = state.feeds[feedIndex].ufesFalse.length;
                     state.feeds[feedIndex].ufeArray = [];
@@ -340,7 +334,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                         .where('_id').nin(state.feeds[feedIndex].ufeArray)
                         .count()
                         .exec(function getFeeds(err, count) {
-                            if (err && null == resultStatus) {
+                            if (err) {
                                 errStr = 'Error getting feed count ' + user.email;
                                 resultStatus = 400;
                                 resultJSON = { error : errStr };
@@ -355,11 +349,9 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                 });
             },
             function calcUnreadCount(cb) {
-                logger.debug("calcUnreadCount");
                 state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
                     userUnreadCount = state.feeds[feedIndex].falseEntryCount +
                                       state.feeds[feedIndex].unmarkedEntryCount;
-                    logger.debug('userUnreadCount is ' + userUnreadCount);
 
                     resultJSON.feeds.push({ _id : feed._id,
                                            feedURL : feed.feedURL,
@@ -390,15 +382,31 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         var user = null;
         var errStr = null;
         var resultStatus = null;
-        var resultJSON = {feeds : []};
-        var state = { feeds : []};
+        var resultJSON = null;
+        var state = { };
 
         logger.debug('Router for /feeds/' + feed_id + '/entries');
+
+        if (undefined == req.param('unreadOnly')) {
+            errStr = "Undefined unreadOnly parameter";
+            logger.debug(errStr);
+            res.status(400);
+            res.json({error: errStr});
+            return;
+        } else {
+            if (('true' != req.param('unreadOnly')) && ('false' != req.param('unreadOnly'))) {
+                errStr = "unreadOnly parameter must be either true or false";
+                logger.debug(errStr);
+                res.status(400);
+                res.json({error: errStr});
+                return;
+            }
+        }
 
         var getUserFeedEntryTasks = [
             function findUser(cb) {
                 UserModel.find({'email' : req.user.email}, function(err, users) {
-                    if (err && null == resultStatus) {
+                    if (err) {
                         errStr = 'Internal error with mongoose looking user ' + req.user.email;
                         resultStatus = 400;
                         resultJSON = { error : errStr };
@@ -417,22 +425,36 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     cb(null);
                 });
             },
-            function getFeeds(cb) {
-                console.dir(user)
-                FeedModel.find().where('_id').in(user.subs).lean().exec(function getFeeds(err, userFeeds) {
-                    if (err && null == resultStatus) {
-                        errStr = 'Error finding subs for user ' + user.email;
-                        resultStatus = 400;
+            function getFeed(cb) {
+                if (-1 == user.subs.indexOf(feed_id)) {
+                    errStr = 'User not subscribed to feed ' + feed_id;
+                    resultStatus = 404;
+                    resultJSON = { error : errStr };
+                    logger.debug(errStr);
+                    cb(new Error(errStr));
+                }
+                FeedModel.find().where({'_id': feed_id}).lean().exec(function getFeeds(err, feeds) {
+                    if (err || (0 == feeds.length)) {
+                        // I'm not sure if this could ever happen, maybe if a
+                        // user was subscribed to a sub that got deleted?
+                        // We'll handle it anyway because we rock.
+                        errStr = 'Error finding feed_id ' + feed_id;
+                        resultStatus = 404;
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
                     }
 
-                    if (userFeeds.length == 0) {
-                        logger.debug('Empty set of feeds for user ' + user.email);
-                    }
-
-                    state.feeds = userFeeds;
+                    state.feed = feeds[0];
+                    // ufesTrue and ufesFalse track _id of UserFeedEntry
+                    //   documents where the user has marked specific feed
+                    //   entries as read=true or read=false respectively
+                    // readEntries and unreadEntries are the actual
+                    //   FeedEntry documents themselves
+                    state.feed.ufesTrue = [];
+                    state.feed.ufesFalse = [];
+                    state.feed.readEntries = [];
+                    state.feed.unreadEntries = [];
                     cb(null);
                 });
             },
@@ -441,114 +463,108 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
             // user/feed_entry combination, or there is a user_feed_entry document and the
             // “read” boolean is false.
             function findTrueReadUFEs(cb) {
-                logger.debug("findTrueReadUFEs");
-                state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    UserFeedEntryModel.find({'userID' : user._id,
-                                             'feedID' : feed._id,
-                                             'read' : true}, function getFeeds(err, ufes) {
-                        if (err && null == resultStatus) {
-                            errStr = 'Error finding true read UFEs for ' + user.email;
-                            resultStatus = 400;
-                            resultJSON = { error : errStr };
-                            logger.debug(errStr);
-                            cb(new Error(errStr));
-                        }
-                        state.feeds[feedIndex].ufesTrue = ufes;
-                        logger.debug("array length = " + feedArray.length)
-                        logger.debug("index = " + feedIndex)
-                        if (feedIndex == feedArray.length - 1) {
-                            cb(null);
-                        }
-                    });
+                UserFeedEntryModel.find({'userID' : user._id,
+                                         'feedID' : state.feed._id,
+                                         'read' : true}, function getFeedEntries(err, ufes) {
+                    if (err) {
+                        errStr = 'Error finding true read UFEs for ' + user.email;
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                    }
+                    state.feed.ufesTrue = ufes;
+                    cb(null);
                 });
             },
             function findFalseReadUFEs(cb) {
-                logger.debug("findFalseReadUFEs");
-                state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    UserFeedEntryModel.find({'userID' : user._id,
-                                             'feedID' : feed._id,
-                                             'read' : false}, function getFeeds(err, ufes) {
-                        if (err && null == resultStatus) {
-                            errStr = 'Error finding false read UFEs for ' + user.email;
+                UserFeedEntryModel.find({'userID' : user._id,
+                                         'feedID' : state.feed._id,
+                                         'read' : false}, function getFeedEntries(err, ufes) {
+                    if (err) {
+                        errStr = 'Error finding false read UFEs for ' + user.email;
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                    }
+                    state.feed.ufesFalse = ufes;
+                    cb(null);
+                });
+            },
+            function getUnreadFeedEntries(cb) {
+                state.feed.readEntryIDs = [];
+                
+                state.feed.ufesTrue.forEach(function processFeed(ufe, index, array) {
+                    state.feed.readEntryIDs.push(ufe.feedEntryID);
+                });
+
+                FeedEntryModel.find()
+                    .where({'feedID' : state.feed._id})
+                    .where('_id').nin(state.feed.readEntryIDs)
+                    .lean()
+                    .exec(function getFeedEntries(err, entries) {
+                        if (err) {
+                            errStr = 'Error getting feed entries for feed_id ' + feed_id;
                             resultStatus = 400;
                             resultJSON = { error : errStr };
                             logger.debug(errStr);
                             cb(new Error(errStr));
                         }
-                        state.feeds[feedIndex].ufesFalse = ufes;
-                        if (feedIndex == feedArray.length - 1) {
-                            cb(null);
-                        }
-                    });
-                });
-            },
-            function getUnmarkedUFEsCount(cb) {
-                logger.debug("getUnmarkedUFEsCount");
-                state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    state.feeds[feedIndex].falseEntryCount = state.feeds[feedIndex].ufesFalse.length;
-                    state.feeds[feedIndex].ufeArray = [];
-                    
-                    state.feeds[feedIndex].ufesFalse.forEach(function processFeed(ufe, index, array) {
-                        // Anything that is marked false has aleady been counted already
-                        // so we don't want to double count it
-                        state.feeds[feedIndex].ufeArray.push(ufe.feedEntryID);
-                    });
-
-                    state.feeds[feedIndex].ufesTrue.forEach(function processFeed(ufe, index, array) {
-                        state.feeds[feedIndex].ufeArray.push(ufe.feedEntryID);
-                    });
-
-                    FeedEntryModel.find()
-                        .where({'feedID' : feed._id})
-                        .where('_id').nin(state.feeds[feedIndex].ufeArray)
-                        .count()
-                        .exec(function getFeeds(err, count) {
-                            if (err && null == resultStatus) {
-                                errStr = 'Error getting feed count ' + user.email;
-                                resultStatus = 400;
-                                resultJSON = { error : errStr };
-                                logger.debug(errStr);
-                                cb(new Error(errStr));
-                            }
-                            state.feeds[feedIndex].unmarkedEntryCount = count;
-                            if (feedIndex == feedArray.length - 1) {
-                                cb(null);
-                            }
-                        });
-                });
-            },
-            function calcUnreadCount(cb) {
-                logger.debug("calcUnreadCount");
-                state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    userUnreadCount = state.feeds[feedIndex].falseEntryCount +
-                                      state.feeds[feedIndex].unmarkedEntryCount;
-                    logger.debug('userUnreadCount is ' + userUnreadCount);
-
-                    resultJSON.feeds.push({ _id : feed._id,
-                                           feedURL : feed.feedURL,
-                                           title : feed.title,
-                                           state : feed.state,
-                                           link : feed.link,
-                                           description : feed.description,
-                                           unreadCount : userUnreadCount });
-                    if (feedIndex == feedArray.length - 1) {
+                        state.feed.unreadEntries = entries;
                         cb(null);
-                    }
-                });    
+                    });
+            },
+            function getReadFeedEntries(cb) {
+                if ('true' == req.param('unreadOnly')) {
+                    // If the user only wants unread entries then we're done
+                    cb(null);
+                    return;
+                }
+
+                FeedEntryModel.find()
+                    .where({'feedID' : state.feed._id})
+                    .where('_id').in(state.feed.readEntryIDs)
+                    .lean()
+                    .exec(function getFeedEntries(err, entries) {
+                        if (err) {
+                            errStr = 'Error getting feed entries for feed_id' + feed_id;
+                            resultStatus = 400;
+                            resultJSON = { error : errStr };
+                            logger.debug(errStr);
+                            cb(new Error(errStr));
+                        }
+                        state.feed.readEntries = entries;
+                        cb(null);
+                    });
+            },
+            function formResponse(cb) {
+                resultJSON = { feed : { _id : state.feed._id,
+                                       feedURL : state.feed.feedURL,
+                                       title : state.feed.title,
+                                       state : state.feed.state,
+                                       link : state.feed.link,
+                                       description : state.feed.description,
+                                       unreadEntries : state.feed.unreadEntries,
+                                       readEntries : state.feed.readEntries } }
+                resultJSON.feed.unreadEntries.forEach(function processEntry(entry, index, array) {
+                    entry.read = false;
+                });
+                resultJSON.feed.readEntries.forEach(function processEntry(entry, index, array) {
+                    entry.read = true;
+                });
+                cb(null);
             }
         ]
 
-        res.status(200);
-        res.json(resultJSON);
-
-        //async.series(getUserFeedEntryTasks, function finalizer(err, results) {
-            //if (null == resultStatus) {
-                //res.status(200);
-            //} else {
-                //res.status(resultStatus);
-            //}
-            //res.json(resultJSON);
-        //});
+        async.series(getUserFeedEntryTasks, function finalizer(err, results) {
+            if (null == resultStatus) {
+                res.status(200);
+            } else {
+                res.status(resultStatus);
+            }
+            res.json(resultJSON);
+        });
     });
 
     router.put('/feeds/subscribe', stormpath.apiAuthenticationRequired, function(req, res) {
