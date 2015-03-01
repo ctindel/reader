@@ -230,7 +230,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         var errStr = null;
         var resultStatus = null;
         var resultJSON = {feeds : []};
-        var state = { feeds : []};
+        var state = { feeds : [] };
 
         var getUserFeedsTasks = [
             function findUser(cb) {
@@ -266,10 +266,11 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
 
                     if (userFeeds.length == 0) {
                         logger.debug('Empty set of feeds for user ' + user.email);
+                        cb(new Error("Not really an error but we want to shortcircuit the series"));
+                    } else {
+                        state.feeds = userFeeds;
+                        cb(null);
                     }
-
-                    state.feeds = userFeeds;
-                    cb(null);
                 });
             },
             // There are two ways to represent that a user has not read a particular feed
