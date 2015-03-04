@@ -223,8 +223,126 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         });
     });
 
+    router.put('/feeds/subscribe', stormpath.apiAuthenticationRequired, function(req, res) {
+        logger.debug('Router for PUT /feeds/subscribe');
+
+        // Users can't have more than 1000 feeds
+        MAX_USER_FEEDS = 1000;
+
+        var resultStatus = null;
+        var resultJSON = [];
+
+        var feed = null;
+        var user = null;
+        var saveErr = null;
+        var errStr = null;
+        var resultStatus = null;
+        var resultJSON = {user : null};
+
+        var feedURL = req.param('feedURL');
+
+        if (undefined == feedURL) {
+            errStr = "Undefined Feed URL";
+            logger.debug(errStr);
+            res.status(400);
+            res.json({error: errStr});
+            return;
+        }
+
+        var subFeedTasks = [
+            function findUser(cb) {
+                UserModel.find({'email' : req.user.email}, function(err, users) {
+                    if (err && null == resultStatus) {
+                        errStr = 'Internal error with mongoose looking user ' + req.user.email;
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+
+                    if (users.length == 0) {
+                        errStr = 'Stormpath returned an email ' + req.user.email + ' for which we dont have a matching user object';
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    user = users[0];
+                    if (user.subs.length > MAX_USER_FEEDS) {
+                        errStr = 'Max feed count of ' + 
+                                 MAX_USER_FEEDS + ' reached for ' + 
+                                 req.user.email;
+                        resultStatus = 403;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    cb(null);
+                });
+            },
+            function insertFeed(cb) {
+                // It's possible this feed already exists from a different user
+                //  and this is totally fine.  
+                // If so this save() will fail, but we'll check afterwards
+                // to make sure this feed exists in the database.  Only if not
+                // then will we return the error from save() to the user.
+                var tmpFeed = new FeedModel({'feedURL' : feedURL});
+                tmpFeed.save(function(err, tmpFeed) {
+                    saveErr = err;
+                    FeedModel.find({'feedURL' : feedURL}, function(err, newFeed) {
+                        if (err && null == resultStatus) {
+                            errStr = 'Error with mongoose looking for newly added feed ' 
+                                     + feedURL + ' ' + JSON.stringify(saveErr);
+                            resultStatus = 400;
+                            resultJSON = { error : errStr };
+                            logger.debug(errStr);
+                            cb(new Error(errStr));
+                            return;
+                        } else {
+                            feed = newFeed[0];
+                            logger.debug("Successfully added feed " + feedURL +
+                                         " on behalf of " + user.email);
+                            cb(null);
+                        }
+                    });
+                });
+            },
+            function addSubToUser(cb) {
+                user.subs.addToSet(feed._id);
+                user.save(function(err, user) {
+                    if (err && null == resultStatus) {
+                        errStr = 'Error saving user ' + user.email
+                                 + ' ' + JSON.stringify(err);
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    } else {
+                        logger.debug("Successfully subscribed user " + user.email +
+                                     " to feed " + feed.feedURL);
+                        resultJSON = {'user' : user};
+                        cb(null);
+                    }
+                });
+            }
+        ]
+
+        async.series(subFeedTasks, function finalizer(err, results) {
+            if (null == resultStatus) {
+                res.status(201);
+            } else {
+                res.status(resultStatus);
+            }
+            res.json(resultJSON);
+        });
+    });
+
     router.get('/feeds', stormpath.apiAuthenticationRequired, function(req, res) {
-        logger.debug('Router for /feeds');
+        logger.debug('Router for GET /feeds');
 
         var user = null;
         var errStr = null;
@@ -336,7 +454,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                         .count()
                         .exec(function getFeeds(err, count) {
                             if (err) {
-                                errStr = 'Error getting feed count ' + user.email;
+                                errStr = 'Error getting feed count ' + feed._id;
                                 resultStatus = 400;
                                 resultJSON = { error : errStr };
                                 logger.debug(errStr);
@@ -378,15 +496,15 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         });
     });
 
-    router.get('/feeds/:feed_id/entries', stormpath.apiAuthenticationRequired, function(req, res) {
-        var feed_id = req.params.feed_id;
+    router.get('/feeds/:feedID/entries', stormpath.apiAuthenticationRequired, function(req, res) {
+        var feedID = req.params.feedID;
         var user = null;
         var errStr = null;
         var resultStatus = null;
         var resultJSON = null;
         var state = { };
 
-        logger.debug('Router for /feeds/' + feed_id + '/entries');
+        logger.debug('Router for GET /feeds/' + feedID + '/entries');
 
         if (undefined == req.param('unreadOnly')) {
             errStr = "Undefined unreadOnly parameter";
@@ -413,6 +531,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
+                        return;
                     }
 
                     if (users.length == 0) {
@@ -421,29 +540,32 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
+                        return;
                     }
                     user = users[0];
                     cb(null);
                 });
             },
             function getFeed(cb) {
-                if (-1 == user.subs.indexOf(feed_id)) {
-                    errStr = 'User not subscribed to feed ' + feed_id;
+                if (-1 == user.subs.indexOf(feedID)) {
+                    errStr = 'User not subscribed to feed ' + feedID;
                     resultStatus = 404;
                     resultJSON = { error : errStr };
                     logger.debug(errStr);
                     cb(new Error(errStr));
+                    return;
                 }
-                FeedModel.find().where({'_id': feed_id}).lean().exec(function getFeeds(err, feeds) {
+                FeedModel.find().where({'_id': feedID}).lean().exec(function getFeeds(err, feeds) {
                     if (err || (0 == feeds.length)) {
                         // I'm not sure if this could ever happen, maybe if a
                         // user was subscribed to a sub that got deleted?
                         // We'll handle it anyway because we rock.
-                        errStr = 'Error finding feed_id ' + feed_id;
+                        errStr = 'Error finding feedID ' + feedID;
                         resultStatus = 404;
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
+                        return;
                     }
 
                     state.feed = feeds[0];
@@ -473,6 +595,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
+                        return;
                     }
                     state.feed.ufesTrue = ufes;
                     cb(null);
@@ -488,6 +611,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
+                        return;
                     }
                     state.feed.ufesFalse = ufes;
                     cb(null);
@@ -506,11 +630,12 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     .lean()
                     .exec(function getFeedEntries(err, entries) {
                         if (err) {
-                            errStr = 'Error getting feed entries for feed_id ' + feed_id;
+                            errStr = 'Error getting feed entries for feedID ' + feedID;
                             resultStatus = 400;
                             resultJSON = { error : errStr };
                             logger.debug(errStr);
                             cb(new Error(errStr));
+                            return;
                         }
                         state.feed.unreadEntries = entries;
                         cb(null);
@@ -529,11 +654,12 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     .lean()
                     .exec(function getFeedEntries(err, entries) {
                         if (err) {
-                            errStr = 'Error getting feed entries for feed_id' + feed_id;
+                            errStr = 'Error getting feed entries for feedID' + feedID;
                             resultStatus = 400;
                             resultJSON = { error : errStr };
                             logger.debug(errStr);
                             cb(new Error(errStr));
+                            return;
                         }
                         state.feed.readEntries = entries;
                         cb(null);
@@ -547,7 +673,8 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                                        link : state.feed.link,
                                        description : state.feed.description,
                                        unreadEntries : state.feed.unreadEntries,
-                                       readEntries : state.feed.readEntries } }
+                                       readEntries : state.feed.readEntries,
+                                       unreadCount : state.feed.unreadEntries.length } }
                 resultJSON.feed.unreadEntries.forEach(function processEntry(entry, index, array) {
                     entry.read = false;
                 });
@@ -568,41 +695,44 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         });
     });
 
-    router.put('/feeds/subscribe', stormpath.apiAuthenticationRequired, function(req, res) {
-        logger.debug('Router for /feeds/subscribe');
 
-        // Users can't have more than 1000 feeds
-        MAX_USER_FEEDS = 1000;
-
-        var resultStatus = null;
-        var resultJSON = [];
-
-        var feed = null;
+    router.put('/feeds/:feedID', stormpath.apiAuthenticationRequired, function(req, res) {
+        var feedID = req.params.feedID;
         var user = null;
-        var saveErr = null;
         var errStr = null;
         var resultStatus = null;
-        var resultJSON = {user : null};
+        var resultJSON = null;
+        var readParam = req.param('read');
+        var state = { };
 
-        var feedURL = req.param('feedURL');
+        logger.debug('Router for PUT /feeds/' + feedID);
 
-        if (undefined == feedURL) {
-            errStr = "Undefined Feed URL";
+        if (undefined == readParam) {
+            errStr = "Undefined read parameter";
             logger.debug(errStr);
             res.status(400);
             res.json({error: errStr});
             return;
+        } else {
+            if (('true' != readParam)) {
+                errStr = "read parameter must be true";
+                logger.debug(errStr);
+                res.status(400);
+                res.json({error: errStr});
+                return;
+            }
         }
 
-        var subFeedTasks = [
+        var markUserFeedReadTasks = [
             function findUser(cb) {
                 UserModel.find({'email' : req.user.email}, function(err, users) {
-                    if (err && null == resultStatus) {
+                    if (err) {
                         errStr = 'Internal error with mongoose looking user ' + req.user.email;
                         resultStatus = 400;
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
+                        return;
                     }
 
                     if (users.length == 0) {
@@ -611,69 +741,302 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
+                        return;
                     }
                     user = users[0];
-                    if (user.subs.length > MAX_USER_FEEDS) {
-                        errStr = 'Max feed count of ' + 
-                                 MAX_USER_FEEDS + ' reached for ' + 
-                                 req.user.email;
-                        resultStatus = 403;
-                        resultJSON = { error : errStr };
-                        logger.debug(errStr);
-                        cb(new Error(errStr));
-                    }
                     cb(null);
                 });
             },
-            function insertFeed(cb) {
-                // It's possible this feed already exists from a different user
-                //  and this is totally fine.  
-                // If so this save() will fail, but we'll check afterwards
-                // to make sure this feed exists in the database.  Only if not
-                // then will we return the error from save() to the user.
-                var tmpFeed = new FeedModel({'feedURL' : feedURL});
-                tmpFeed.save(function(err, tmpFeed) {
-                    saveErr = err;
-                    FeedModel.find({'feedURL' : feedURL}, function(err, newFeed) {
-                        if (err && null == resultStatus) {
-                            errStr = 'Error with mongoose looking for newly added feed ' 
-                                     + feedURL + ' ' + JSON.stringify(saveErr);
+            function getFeed(cb) {
+                if (-1 == user.subs.indexOf(feedID)) {
+                    errStr = 'User not subscribed to feed ' + feedID;
+                    resultStatus = 404;
+                    resultJSON = { error : errStr };
+                    logger.debug(errStr);
+                    cb(new Error(errStr));
+                    return;
+                }
+                FeedModel.find().where({'_id': feedID}).lean().exec(function getFeeds(err, feeds) {
+                    if (err || (0 == feeds.length)) {
+                        // I'm not sure if this could ever happen, maybe if a
+                        // user was subscribed to a sub that got deleted?
+                        // We'll handle it anyway because we rock.
+                        errStr = 'Error finding feedID ' + feedID;
+                        resultStatus = 404;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+
+                    state.feed = feeds[0];
+                    // ufesTrue track _id of UserFeedEntry
+                    //   documents where the user has marked specific feed
+                    //   entries as read=true
+                    state.feed.ufesTrue = [];
+                    cb(null);
+                });
+            },
+            function findTrueReadUFEs(cb) {
+                UserFeedEntryModel.find({'userID' : user._id,
+                                         'feedID' : state.feed._id,
+                                         'read' : true}, function getFeedEntries(err, ufes) {
+                    if (err) {
+                        errStr = 'Error finding true read UFEs for ' + user.email;
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    state.feed.ufesTrue = ufes;
+                    cb(null);
+                });
+            },
+            function getUnreadFeedEntries(cb) {
+                state.feed.readEntryIDs = [];
+                
+                state.feed.ufesTrue.forEach(function processFeed(ufe, index, array) {
+                    state.feed.readEntryIDs.push(ufe.feedEntryID);
+                });
+
+                FeedEntryModel.find()
+                    .where({'feedID' : state.feed._id})
+                    .where('_id').nin(state.feed.readEntryIDs)
+                    .exec(function getFeedEntries(err, entries) {
+                        if (err) {
+                            errStr = 'Error getting feed entries for feedID ' + feedID;
                             resultStatus = 400;
                             resultJSON = { error : errStr };
                             logger.debug(errStr);
                             cb(new Error(errStr));
-                        } else {
-                            feed = newFeed[0];
-                            logger.debug("Successfully added feed " + feedURL +
-                                         " on behalf of " + user.email);
+                        }
+                        state.feed.unreadEntries = entries;
+                        cb(null);
+                    });
+            },
+            function markEntriesAsRead(cb) {
+                if (state.feed.unreadEntries.length == 0) {
+                    cb(null);
+                    return;
+                }
+
+                state.feed.unreadEntries.forEach(function markEntryAsRead(entry, index, array) {
+                    UserFeedEntryModel.update({ 'userID' : user._id, 
+                                                'feedID' : state.feed._id,
+                                                'feedEntryID' : entry._id },
+                                              { 'read' : true },
+                                              { upsert : true }, function (err, numberAffected, raw) {
+                        if (err) {
+                            errStr = 'Error marking feedID ' + state.feed._id
+                                     + ' entryID ' + entry._id + ' read=true'
+                                     + ' for user ' + user.email;
+                            resultStatus = 400;
+                            resultJSON = { error : errStr };
+                            logger.debug(errStr);
+                            cb(new Error(errStr));
+                            return;
+                        }
+                        if (index == array.length - 1) {
                             cb(null);
                         }
                     });
                 });
             },
-            function addSubToUser(cb) {
-                user.subs.addToSet(feed._id);
-                user.save(function(err, user) {
-                    if (err && null == resultStatus) {
-                        errStr = 'Error saving user ' + user.email
-                                 + ' ' + JSON.stringify(err);
+            function formResponse(cb) {
+                resultJSON = { feed : { _id : state.feed._id,
+                                       'unreadCount' : 0 }};
+                cb(null);
+            }
+        ]
+
+        async.series(markUserFeedReadTasks, function finalizer(err, results) {
+            if (null == resultStatus) {
+                res.status(200);
+            } else {
+                res.status(resultStatus);
+            }
+            res.json(resultJSON);
+        });
+    });
+
+    router.put('/feeds/:feedID/entries/:entryID', stormpath.apiAuthenticationRequired, function(req, res) {
+        var feedID = req.params.feedID;
+        var entryID = req.params.entryID;
+        var readParam = req.param('read');
+        var user = null;
+        var errStr = null;
+        var resultStatus = null;
+        var resultJSON = null;
+        var state = { };
+        var markRead = null;
+
+        logger.debug('Router for PUT /feeds/' + feedID + '/entries/' + entryID);
+
+        if (undefined == readParam) {
+            errStr = "Undefined read parameter";
+            logger.debug(errStr);
+            res.status(400);
+            res.json({error: errStr});
+            return;
+        } else {
+            if ('true' == readParam) {
+                markRead = true;
+            } else if ('false' == readParam) {
+                markRead = false;
+            } else {
+                errStr = "read parameter must be either true or false";
+                logger.debug(errStr);
+                res.status(400);
+                res.json({error: errStr});
+                return;
+            }
+        }
+
+        var markUserFeedEntryReadTasks = [
+            function findUser(cb) {
+                UserModel.find({'email' : req.user.email}, function(err, users) {
+                    if (err) {
+                        errStr = 'Internal error with mongoose looking user ' + req.user.email;
                         resultStatus = 400;
                         resultJSON = { error : errStr };
                         logger.debug(errStr);
                         cb(new Error(errStr));
-                    } else {
-                        logger.debug("Successfully subscribed user " + user.email +
-                                     " to feed " + feed.feedURL);
-                        resultJSON = {'user' : user};
-                        cb(null);
+                        return;
                     }
+
+                    if (users.length == 0) {
+                        errStr = 'Stormpath returned an email ' + req.user.email + ' for which we dont have a matching user object';
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    user = users[0];
+                    cb(null);
                 });
+            },
+            function getFeed(cb) {
+                if (-1 == user.subs.indexOf(feedID)) {
+                    errStr = 'User not subscribed to feed ' + feedID;
+                    resultStatus = 404;
+                    resultJSON = { error : errStr };
+                    logger.debug(errStr);
+                    cb(new Error(errStr));
+                    return;
+                }
+                FeedModel.find().where({'_id': feedID}).lean().exec(function getFeeds(err, feeds) {
+                    if (err || (0 == feeds.length)) {
+                        // I'm not sure if this could ever happen, maybe if a
+                        // user was subscribed to a sub that got deleted?
+                        // We'll handle it anyway because we rock.
+                        errStr = 'Error finding feedID ' + feedID;
+                        resultStatus = 404;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+
+                    state.feed = feeds[0];
+                    // ufesTrue track _id of UserFeedEntry
+                    //   documents where the user has marked specific feed
+                    //   entries as read=true
+                    state.feed.ufesTrue = [];
+                    cb(null);
+                });
+            },
+            function checkEntryExists(cb) {
+                FeedEntryModel.find().where({'_id': entryID}).exec(function getFeeds(err, entryArray) {
+                    if (err || (0 == entryArray.length)) {
+                        errStr = 'Error finding entryID ' + entryID;
+                        resultStatus = 404;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    state.entry = entryArray[0];
+                    if (state.entry.feedID != feedID) {
+                        errStr = 'Entry ' + entryID + ' is part of feed ' 
+                                  + state.entry.feedID + ' not part of feed ' + feedID;
+                        resultStatus = 404;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    cb(null);
+                });
+            },
+            function markEntry(cb) {
+                UserFeedEntryModel.update({ 'userID' : user._id, 
+                                            'feedID' : state.feed._id,
+                                            'feedEntryID' : entryID },
+                                          { 'read' : markRead },
+                                          { upsert : true }, function (err, numberAffected, raw) {
+                    if (err) {
+                        errStr = 'Error marking feedID ' + feedID
+                                 + ' entryID ' + entryID + ' read=' + markRead
+                                 + ' for user ' + user.email;
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    cb(null);
+                });
+            },
+            function findFeedEntryCount(cb) {
+                FeedEntryModel.find()
+                    .where({'feedID' : feedID})
+                    .count()
+                    .exec(function getFeeds(err, count) {
+                        if (err) {
+                            errStr = 'Error getting feed count ' + feedID;
+                            resultStatus = 400;
+                            resultJSON = { error : errStr };
+                            logger.debug(errStr);
+                            cb(new Error(errStr));
+                            return;
+                        }
+                        state.feed.entryCount = count;
+                        cb(null);
+                    });
+            },
+            function findTrueReadUFECount(cb) {
+                UserFeedEntryModel.find()
+                   .where({ 'userID' : user._id,
+                            'feedID' : state.feed._id,
+                            'read' : true})
+                   .count()
+                   .exec(function getReadEntryCount(err, count) {
+                        if (err) {
+                            errStr = 'Error finding true read UFE Count for user ' 
+                                     + user.email + ' feed ' + feedID;
+                            resultStatus = 400;
+                            resultJSON = { error : errStr };
+                            logger.debug(errStr);
+                            cb(new Error(errStr));
+                            return;
+                        }
+                        state.feed.ufesTrueCount = count;
+                        cb(null);
+                });
+            },
+            function formResponse(cb) {
+                var unreadCount = state.feed.entryCount - state.feed.ufesTrueCount;
+                resultJSON = { feed : { '_id' : state.feed._id,
+                                       'unreadCount' : unreadCount }};
+                cb(null);
             }
         ]
 
-        async.series(subFeedTasks, function finalizer(err, results) {
+        async.series(markUserFeedEntryReadTasks, function finalizer(err, results) {
             if (null == resultStatus) {
-                res.status(201);
+                res.status(200);
             } else {
                 res.status(resultStatus);
             }
