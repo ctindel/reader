@@ -9,9 +9,6 @@ var mongoose       = require('mongoose');
 
 //logger.debug("Overriding 'Express' logger");
 
-    //var expressWinston = require('express-winston');
-    //var winston = require('winston'); // for transports.Console
-
 var stormpath = require('express-stormpath');
 var routes = require("./app/routes");
 

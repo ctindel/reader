@@ -341,14 +341,32 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         });
     });
 
+    // If the user sets includeUnreadIDs then we will give them back an array
+    // of unread feed entry IDs and we will exclute the unreadCount to avoid
+    // the possibility of things changing since it would need to be done in two
+    // queries and they can get the unreadCount simply by examining the number
+    // of array entries returned in unreadIDs
     router.get('/feeds', stormpath.apiAuthenticationRequired, function(req, res) {
         logger.debug('Router for GET /feeds');
 
         var user = null;
         var errStr = null;
+        var includeUnreadIDs = false;
         var resultStatus = null;
         var resultJSON = {feeds : []};
         var state = { feeds : [] };
+
+        if (undefined != req.param('includeUnreadIDs')) {
+            if ('true' == req.param('includeUnreadIDs')) {
+                includeUnreadIDs = true;
+            } else {
+                errStr = "includeUnreadIDs parameter must be either true if set";
+                logger.debug(errStr);
+                res.status(400);
+                res.json({error: errStr});
+                return;
+            }
+        }
 
         var getUserFeedsTasks = [
             function findUser(cb) {
@@ -414,56 +432,27 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     });
                 });
             },
-            function findFalseReadUFEs(cb) {
+            function getUnreadFeedEntries(cb) {
                 state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    UserFeedEntryModel.find({'userID' : user._id,
-                                             'feedID' : feed._id,
-                                             'read' : false}, function getFeedEntries(err, ufes) {
-                        if (err) {
-                            errStr = 'Error finding false read UFEs for ' + user.email;
-                            resultStatus = 400;
-                            resultJSON = { error : errStr };
-                            logger.debug(errStr);
-                            cb(new Error(errStr));
-                        }
-                        state.feeds[feedIndex].ufesFalse = ufes;
-                        if (feedIndex == feedArray.length - 1) {
-                            cb(null);
-                        }
-                    });
-                });
-            },
-            function getUnmarkedUFEsCount(cb) {
-                state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    state.feeds[feedIndex].falseEntryCount = state.feeds[feedIndex].ufesFalse.length;
-                    state.feeds[feedIndex].ufeArray = [];
+                    state.feed[feedIndex].readEntryIDs = [];
                     
-                    state.feeds[feedIndex].ufesFalse.forEach(function processFeed(ufe, index, array) {
-                        // Anything that is marked false has aleady been counted already
-                        // so we don't want to double count it
-                        state.feeds[feedIndex].ufeArray.push(ufe.feedEntryID);
-                    });
-
-                    state.feeds[feedIndex].ufesTrue.forEach(function processFeed(ufe, index, array) {
-                        state.feeds[feedIndex].ufeArray.push(ufe.feedEntryID);
+                    state.feed.ufesTrue.forEach(function processFeed(ufe, index, array) {
+                        state.feed.readEntryIDs.push(ufe.feedEntryID);
                     });
 
                     FeedEntryModel.find()
-                        .where({'feedID' : feed._id})
-                        .where('_id').nin(state.feeds[feedIndex].ufeArray)
-                        .count()
-                        .exec(function getFeeds(err, count) {
+                        .where({'feedID' : state.feed._id})
+                        .where('_id').nin(state.feed.readEntryIDs)
+                        .exec(function getFeedEntries(err, entries) {
                             if (err) {
-                                errStr = 'Error getting feed count ' + feed._id;
+                                errStr = 'Error getting feed entries for feedID ' + feedID;
                                 resultStatus = 400;
                                 resultJSON = { error : errStr };
                                 logger.debug(errStr);
                                 cb(new Error(errStr));
                             }
-                            state.feeds[feedIndex].unmarkedEntryCount = count;
-                            if (feedIndex == feedArray.length - 1) {
-                                cb(null);
-                            }
+                            state.feed.unreadEntries = entries;
+                            cb(null);
                         });
                 });
             },
