@@ -360,7 +360,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
             if ('true' == req.param('includeUnreadIDs')) {
                 includeUnreadIDs = true;
             } else {
-                errStr = "includeUnreadIDs parameter must be either true if set";
+                errStr = "includeUnreadIDs parameter must be true if set";
                 logger.debug(errStr);
                 res.status(400);
                 res.json({error: errStr});
@@ -409,11 +409,13 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     }
                 });
             },
-            // There are two ways to represent that a user has not read a particular feed
-            // entry.  Either there is no user_feed_entry document referring to that
-            // user/feed_entry combination, or there is a user_feed_entry document and the
-            // “read” boolean is false.
+            // We find the unread feed entries by looking at which UFEs are
+            // marked true, then looking for feed entries which are not in that
+            // list.  This will work for entries which have no UFE or where the
+            // UFE is marked as unread.
             function findTrueReadUFEs(cb) {
+                var feedsProcessed = 0;
+
                 state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
                     UserFeedEntryModel.find({'userID' : user._id,
                                              'feedID' : feed._id,
@@ -426,49 +428,69 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                             cb(new Error(errStr));
                         }
                         state.feeds[feedIndex].ufesTrue = ufes;
-                        if (feedIndex == feedArray.length - 1) {
+                        feedsProcessed++;
+                        if (feedsProcessed == feedArray.length) {
                             cb(null);
                         }
                     });
                 });
             },
             function getUnreadFeedEntries(cb) {
+                var feedsProcessed = 0;
+
                 state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    state.feed[feedIndex].readEntryIDs = [];
+                    feed.readEntryIDs = [];
+                    feed.unreadEntryIDs = [];
                     
-                    state.feed.ufesTrue.forEach(function processFeed(ufe, index, array) {
-                        state.feed.readEntryIDs.push(ufe.feedEntryID);
+                    feed.ufesTrue.forEach(function (ufe, index, array) {
+                        feed.readEntryIDs.push(ufe.feedEntryID);
                     });
 
                     FeedEntryModel.find()
-                        .where({'feedID' : state.feed._id})
-                        .where('_id').nin(state.feed.readEntryIDs)
+                        .where({'feedID' : feed._id})
+                        .where('_id').nin(feed.readEntryIDs)
+                        .select('_id')
                         .exec(function getFeedEntries(err, entries) {
                             if (err) {
-                                errStr = 'Error getting feed entries for feedID ' + feedID;
+                                errStr = 'Error getting feed entries for feedID ' + feed._id;
                                 resultStatus = 400;
                                 resultJSON = { error : errStr };
                                 logger.debug(errStr);
                                 cb(new Error(errStr));
                             }
-                            state.feed.unreadEntries = entries;
-                            cb(null);
+                            
+                            entries.forEach(function(entry, unreadIndex, unreadArray) {
+                                feed.unreadEntryIDs.push(entry._id);
+                            });
+
+                            feedsProcessed++;
+                            if (feedsProcessed == feedArray.length) {
+                                cb(null);
+                            }
                         });
                 });
             },
-            function calcUnreadCount(cb) {
-                state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                    userUnreadCount = state.feeds[feedIndex].falseEntryCount +
-                                      state.feeds[feedIndex].unmarkedEntryCount;
+            function formResponse(cb) {
+                var feedsProcessed = 0;
 
-                    resultJSON.feeds.push({ _id : feed._id,
-                                           feedURL : feed.feedURL,
-                                           title : feed.title,
-                                           state : feed.state,
-                                           link : feed.link,
-                                           description : feed.description,
-                                           unreadCount : userUnreadCount });
-                    if (feedIndex == feedArray.length - 1) {
+                state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
+                    userUnreadCount = feed.unreadEntryIDs.length;
+
+                    var feedRes = 
+                        { _id : feed._id,
+                          feedURL : feed.feedURL,
+                          title : feed.title,
+                          state : feed.state,
+                          link : feed.link,
+                          description : feed.description,
+                          unreadCount : feed.unreadEntryIDs.length };
+
+                    if (true == includeUnreadIDs) {
+                        feedRes.unreadEntryIDs = feed.unreadEntryIDs;
+                    }
+                    resultJSON.feeds.push(feedRes);
+                    feedsProcessed++;
+                    if (feedsProcessed == feedArray.length) {
                         cb(null);
                     }
                 });    
@@ -492,6 +514,11 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         var resultStatus = null;
         var resultJSON = null;
         var state = { };
+        var unreadEntryIDStr = null;
+        var unreadEntryIDs = null;
+
+        var MAX_UNREAD_ENTRY_ID_STR_LENGTH = 1024;
+        var MAX_UNREAD_ENTRY_ID_ARR_LENGTH = 20;
 
         logger.debug('Router for GET /feeds/' + feedID + '/entries');
 
@@ -502,6 +529,33 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
             res.json({error: errStr});
             return;
         } else {
+            unreadEntryIDStr = req.param('unreadEntryIDs');
+            if (undefined != unreadEntryIDStr) {
+                if (unreadEntryIDStr.length > MAX_UNREAD_ENTRY_ID_STR_LENGTH) {
+                    errStr = "unreadEntryIDs parameter must be shorter than " 
+                             + MAX_UNREAD_ENTRY_ID_STR_LENGTH + " bytes";
+                    logger.debug(errStr);
+                    res.status(400);
+                    res.json({error: errStr});
+                    return;
+                }
+                unreadEntryIDs = unreadEntryIDStr.split(',');
+                if (unreadEntryIDs.length > MAX_UNREAD_ENTRY_ID_ARR_LENGTH) {
+                    errStr = "unreadEntryIDs parameter must be fewer than " 
+                             + MAX_UNREAD_ENTRY_ID_ARR_LENGTH + " entries";
+                    logger.debug(errStr);
+                    res.status(400);
+                    res.json({error: errStr});
+                    return;
+                }
+                if ('true' != req.param('unreadOnly')) {
+                    errStr = "unreadOnly parameter must be true if unreadEntryIDs is set";
+                    logger.debug(errStr);
+                    res.status(400);
+                    res.json({error: errStr});
+                    return;
+                }
+            }
             if (('true' != req.param('unreadOnly')) && ('false' != req.param('unreadOnly'))) {
                 errStr = "unreadOnly parameter must be either true or false";
                 logger.debug(errStr);
@@ -558,13 +612,12 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     }
 
                     state.feed = feeds[0];
-                    // ufesTrue and ufesFalse track _id of UserFeedEntry
+                    // ufesTrue track _id of UserFeedEntry
                     //   documents where the user has marked specific feed
-                    //   entries as read=true or read=false respectively
+                    //   entries as read=true
                     // readEntries and unreadEntries are the actual
                     //   FeedEntry documents themselves
                     state.feed.ufesTrue = [];
-                    state.feed.ufesFalse = [];
                     state.feed.readEntries = [];
                     state.feed.unreadEntries = [];
                     cb(null);
@@ -590,22 +643,6 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     cb(null);
                 });
             },
-            function findFalseReadUFEs(cb) {
-                UserFeedEntryModel.find({'userID' : user._id,
-                                         'feedID' : state.feed._id,
-                                         'read' : false}, function getFeedEntries(err, ufes) {
-                    if (err) {
-                        errStr = 'Error finding false read UFEs for ' + user.email;
-                        resultStatus = 400;
-                        resultJSON = { error : errStr };
-                        logger.debug(errStr);
-                        cb(new Error(errStr));
-                        return;
-                    }
-                    state.feed.ufesFalse = ufes;
-                    cb(null);
-                });
-            },
             function getUnreadFeedEntries(cb) {
                 state.feed.readEntryIDs = [];
                 
@@ -613,22 +650,25 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     state.feed.readEntryIDs.push(ufe.feedEntryID);
                 });
 
-                FeedEntryModel.find()
+                query = FeedEntryModel.find()
                     .where({'feedID' : state.feed._id})
-                    .where('_id').nin(state.feed.readEntryIDs)
-                    .lean()
-                    .exec(function getFeedEntries(err, entries) {
-                        if (err) {
-                            errStr = 'Error getting feed entries for feedID ' + feedID;
-                            resultStatus = 400;
-                            resultJSON = { error : errStr };
-                            logger.debug(errStr);
-                            cb(new Error(errStr));
-                            return;
-                        }
-                        state.feed.unreadEntries = entries;
-                        cb(null);
-                    });
+                    .where('_id').nin(state.feed.readEntryIDs);
+
+                if (null != unreadEntryIDs) {
+                    query.where('_id').in(unreadEntryIDs)
+                }
+                query.lean().exec(function getFeedEntries(err, entries) {
+                    if (err) {
+                        errStr = 'Error getting feed entries for feedID ' + feedID;
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    state.feed.unreadEntries = entries;
+                    cb(null);
+                });
             },
             function getReadFeedEntries(cb) {
                 if ('true' == req.param('unreadOnly')) {
@@ -805,6 +845,8 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                     });
             },
             function markEntriesAsRead(cb) {
+                var entriesProcessed = 0;
+
                 if (state.feed.unreadEntries.length == 0) {
                     cb(null);
                     return;
@@ -826,7 +868,8 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
                             cb(new Error(errStr));
                             return;
                         }
-                        if (index == array.length - 1) {
+                        entriesProcessed++;
+                        if (entriesProcessed == array.length) {
                             cb(null);
                         }
                     });

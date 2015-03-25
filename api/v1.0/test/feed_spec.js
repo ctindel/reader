@@ -12,12 +12,12 @@ feedTestArray = [
     function getFeedsFirstUser(callback) {
         var user = TEST_USERS[0];
         frisby.create('GET feed list for user ' + user.email)
-            .get(tc.url + '/feeds')
+            .get(tc.url + '/feeds?includeUnreadIDs=true')
             .auth(user.sp_api_key_id, user.sp_api_key_secret)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('feeds', 2)
-            .expectJSONTypes('feeds.*', {unreadCount : Number})
+            .expectJSONTypes('feeds.*', {unreadCount : Number, unreadEntryIDs : Array})
             .afterJSON(function getSingleFeed(res1) {
                 frisby.create('GET first feed unread entries for user ' + user.email)
                     .get(tc.url + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=true')

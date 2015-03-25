@@ -6,6 +6,8 @@ var async = require('async');
 var dbConfig = require('./config/db.js');
 
 var user = TEST_USERS[0];
+var LONG_UNREAD_IDS_STR =
+'sCWu7cKp1NuBDQqpRPfUUKwb6c86pPjzQu4vJSMJheatw2Sz1kvFRqKN5bbr9tnKXmKRFMbYQsW2vFw1cXuKzpN2UFrAya1VF4ajhY6nGj9QX2HUENX60INMqaeLyAjo97CEOnonBVMjY71XU71KcinKfwbLV6EkHeL6AaRhNRyqs7sqhQ7N7YvHUj1lXhCkJjn0sqYSMiqMiuBaoXjJIHKNqTDHlcP57F7DwOtFtwiJWXq0fsFUeYzpXtnogogsLtNl5Pu3AJTMg20kkiejOC5QUtEmSJCzmkAZU6OUcW1nmDFU2JOzqFVI25LhWRaqskMAAWtlFmXO1Vl7qXngLFob2lV6EAFwK8D5kbpLGJbrcz59ZPulK3SLfYAXOJvXGztGOlCfHek6I36K2U5XYXz8A035j8lyb461ARrUwjgSkqDXURwwE7jpUfflCXFnLQsZiO0T66HXZ3siPUIPC4IsrcMBObUtNUnvxE5iPQMUrXo5ILMGKIJDsejIEpzQ2CRFNj9sHy26Q6f5pzHCpT8HlQ3w1QHJyiobDBAy08DrU3Ol5hkWrvAYOoHaxGIYz6y27JhohDIe7VjcZbHX8yEJqUjJrufQXsWgDcmqgA9tjwRRfLwuCNkUgfNYL5r1Jai8GUk2nXygjEuN6ISEokB0XosuJApNLkPCfpe8j0ju7X6FpcjSezvhYbGZpyYvWaTV7xhUQz7P4GUv9AWabx74Z8bSwECntiTsKkzR3AKTpQXVA2cz1g5EJwc6IpGpk0mR2Za8zOPHYG2TbJmYGueWVO5bUaVE98kyImq2hO8ophMsf5C9aHtOygaAUt8IhS1eDlnR4f389rWSrmrZHj0tiMLhjtfpZZHLBUGS8kaphT33PsTXV4H6m4xyFOoNahLuj8CFbAmlVJj22XAYyVKOl015TCts0bboutiF4RNuEUxZCtwkfNCOBevjTKWO5R7QqqgWJyAMskI9K9qXAW8NGZ0WrnE5GbKxCmife8kHqQqmbyf0voZE0pHPlH84l';
 
 frisby.create('GET invalid feed entries ' + user.email)
     .get(tc.url + '/feeds/1234/entries?unreadOnly=true')
@@ -20,7 +22,64 @@ frisby.create('GET feed entries invalid includeUnreadIDs param ' + user.email)
     .auth(user.sp_api_key_id, user.sp_api_key_secret)
     .expectStatus(400)
     .expectHeader('Content-Type', 'application/json; charset=utf-8')
-    .expectJSON({'error' : 'Undefined unreadOnly parameter'})
+    .expectJSON({'error' : 'includeUnreadIDs parameter must be true if set'})
+    .toss()
+
+frisby.create('GET feed entries unreadEntryIDs incorrect unreadOnly param part 1 ' + user.email)
+    .get(tc.url + '/feeds?includeUnreadIDs=true')
+    .auth(user.sp_api_key_id, user.sp_api_key_secret)
+    .expectStatus(200)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONLength('feeds', 2)
+    .expectJSONTypes('feeds.*', {unreadCount : Number})
+    .afterJSON(function getSingleFeed(res1) {
+        frisby.create('GET feed entries unreadEntryIDs incorrect unreadOnly param part 2 ' + user.email)
+            .get(tc.url + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=false&unreadEntryIDs=' + 
+                 res1.feeds[0].unreadEntryIDs.slice(0,19).join())
+            .auth(user.sp_api_key_id, user.sp_api_key_secret)
+            .expectHeader('Content-Type', 'application/json; charset=utf-8')
+            .expectStatus(400)
+            .expectJSON({'error' : 'unreadOnly parameter must be true if unreadEntryIDs is set'})
+            .toss()
+    })
+    .toss()
+
+frisby.create('GET feed entries too many unreadEntryIDs part 1 ' + user.email)
+    .get(tc.url + '/feeds?includeUnreadIDs=true')
+    .auth(user.sp_api_key_id, user.sp_api_key_secret)
+    .expectStatus(200)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONLength('feeds', 2)
+    .expectJSONTypes('feeds.*', {unreadCount : Number})
+    .afterJSON(function getSingleFeed(res1) {
+        frisby.create('GET feed entries too many unreadEntryIDs part 2 ' + user.email)
+            .get(tc.url + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=true&unreadEntryIDs=' + 
+                 res1.feeds[0].unreadEntryIDs.slice(0,21).join())
+            .auth(user.sp_api_key_id, user.sp_api_key_secret)
+            .expectHeader('Content-Type', 'application/json; charset=utf-8')
+            .expectStatus(400)
+            .expectJSON({'error' : 'unreadEntryIDs parameter must be fewer than 20 entries'})
+            .toss()
+    })
+    .toss()
+
+frisby.create('GET feed entries too long unreadEntryIDs string part 1 ' + user.email)
+    .get(tc.url + '/feeds?includeUnreadIDs=true')
+    .auth(user.sp_api_key_id, user.sp_api_key_secret)
+    .expectStatus(200)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONLength('feeds', 2)
+    .expectJSONTypes('feeds.*', {unreadCount : Number})
+    .afterJSON(function getSingleFeed(res1) {
+        frisby.create('GET feed entries too long unreadEntryIDs string part 2 ' + user.email)
+            .get(tc.url + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=true&unreadEntryIDs=' + 
+                 LONG_UNREAD_IDS_STR) 
+            .auth(user.sp_api_key_id, user.sp_api_key_secret)
+            .expectHeader('Content-Type', 'application/json; charset=utf-8')
+            .expectStatus(400)
+            .expectJSON({'error' : 'unreadEntryIDs parameter must be shorter than 1024 bytes'})
+            .toss()
+    })
     .toss()
 
 frisby.create('GET feed entries missing unreadOnly param part 1 ' + user.email)

@@ -5,6 +5,7 @@ var tc = require('./config/test_config');
 var async = require('async');
 var dbConfig = require('./config/db.js');
 
+var lifeHackerFeedURL = 'http://lifehacker.com/rss';
 var dilbertBlogFeedURL = 'http://feed.dilbert.com/dilbert/blog';
 var nycEaterFeedURL = 'http://feeds.feedburner.com/eater/nyc';
 
