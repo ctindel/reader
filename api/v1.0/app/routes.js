@@ -227,7 +227,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         logger.debug('Router for PUT /feeds/subscribe');
 
         // Users can't have more than 1000 feeds
-        MAX_USER_FEEDS = 1000;
+        MAX_USER_FEEDS = 200;
 
         var resultStatus = null;
         var resultJSON = [];
@@ -333,7 +333,7 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
 
         async.series(subFeedTasks, function finalizer(err, results) {
             if (null == resultStatus) {
-                res.status(201);
+                res.status(200);
             } else {
                 res.status(resultStatus);
             }
@@ -1067,6 +1067,82 @@ exports.addAPIRouter = function(app, mongoose, stormpath) {
         ]
 
         async.series(markUserFeedEntryReadTasks, function finalizer(err, results) {
+            if (null == resultStatus) {
+                res.status(200);
+            } else {
+                res.status(resultStatus);
+            }
+            res.json(resultJSON);
+        });
+    });
+
+    router.delete('/feeds/:feedID', stormpath.apiAuthenticationRequired, function(req, res) {
+        var feedID = req.params.feedID;
+
+        var resultStatus = null;
+        var resultJSON = [];
+
+        var user = null;
+        var errStr = null;
+        var resultStatus = null;
+        var resultJSON = {user : null};
+
+        logger.debug('Router for DELETE /feeds/' + feedID);
+
+        var unsubFeedTasks = [
+            function findUser(cb) {
+                UserModel.find({'email' : req.user.email}, function(err, users) {
+                    if (err && null == resultStatus) {
+                        errStr = 'Internal error with mongoose looking user ' + req.user.email;
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+
+                    if (users.length == 0) {
+                        errStr = 'Stormpath returned an email ' + req.user.email + ' for which we dont have a matching user object';
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    }
+                    user = users[0];
+                    cb(null);
+                });
+            },
+            function unsubscribeFeed(cb) {
+                if (-1 == user.subs.indexOf(feedID)) {
+                    errStr = 'User not subscribed to feed ' + feedID;
+                    resultStatus = 404;
+                    resultJSON = { error : errStr };
+                    logger.debug(errStr);
+                    cb(new Error(errStr));
+                    return;
+                }
+                user.subs.pull(feedID);
+                user.save(function(err, user) {
+                    if (err && null == resultStatus) {
+                        errStr = 'Error saving user ' + user.email
+                                 + ' ' + JSON.stringify(err);
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        logger.debug(errStr);
+                        cb(new Error(errStr));
+                        return;
+                    } else {
+                        logger.debug("Successfully unsubscribed user " + user.email +
+                                     " from feed " + feedID);
+                        resultJSON = {'user' : user};
+                        cb(null);
+                    }
+                });
+            }
+        ]
+
+        async.series(unsubFeedTasks, function finalizer(err, results) {
             if (null == resultStatus) {
                 res.status(200);
             } else {

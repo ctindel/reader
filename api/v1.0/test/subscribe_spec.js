@@ -27,7 +27,7 @@ feedTestArray = [
             .put(tc.url + '/feeds/subscribe',
                  {'feedURL' : dilbertBlogFeedURL})
             .auth(user.sp_api_key_id, user.sp_api_key_secret)
-            .expectStatus(201)
+            .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 1)
             .toss()
@@ -39,7 +39,7 @@ feedTestArray = [
             .put(tc.url + '/feeds/subscribe',
                  {'feedURL' : dilbertBlogFeedURL})
             .auth(user.sp_api_key_id, user.sp_api_key_secret)
-            .expectStatus(201)
+            .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 1)
             .toss()
@@ -51,7 +51,7 @@ feedTestArray = [
             .put(tc.url + '/feeds/subscribe',
                  {'feedURL' : nycEaterFeedURL})
             .auth(user.sp_api_key_id, user.sp_api_key_secret)
-            .expectStatus(201)
+            .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 2)
             .toss()
@@ -63,7 +63,7 @@ feedTestArray = [
             .put(tc.url + '/feeds/subscribe',
                  {'feedURL' : nycEaterFeedURL})
             .auth(user.sp_api_key_id, user.sp_api_key_secret)
-            .expectStatus(201)
+            .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 1)
             .toss()

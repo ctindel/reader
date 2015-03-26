@@ -10,3 +10,4 @@ jasmine-node feed_spec.js
 jasmine-node feed_entry_read_spec.js
 jasmine-node feed_read_spec.js
 jasmine-node feed_entry_unread_spec.js
+jasmine-node unsubscribe_spec.js
