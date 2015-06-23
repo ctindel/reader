@@ -1,6 +1,0 @@
-mode: dev
-logging:
-    path: $root/logs
-db:
-    url: mongodb://localhost
-    dbName: reader_test
