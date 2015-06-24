@@ -15,6 +15,8 @@ module.exports.addAPIRouter = function(config, app, mongoose) {
         appHref: config.sp.STORMPATH_APP_HREF,
         apiKeyId: config.sp.STORMPATH_API_KEY_ID,
         apiKeySecret: config.sp.STORMPATH_API_KEY_SECRET,
+        writeAccessTokenResponse: true
+        //allowedOrigins: ['http://localhost:3000']
     };
     var spMiddleware = stormpath.createMiddleware(spConfig);
 
@@ -23,28 +25,25 @@ module.exports.addAPIRouter = function(config, app, mongoose) {
 
     spMiddleware.attachDefaults(router);
 
-    app.get('/api/*', function(req, res, next) {
+    router.use(function(req, res, next) {
         res.contentType('application/json');
         next();
     });
 
-    // POST
-    app.post('/api/*', function(req, res, next) {
-        res.contentType('application/json');
-        next();
-    });
-
-    // PUT
-    app.put('/api/*', function(req, res, next) {
-        res.contentType('application/json');
-        next();
-    });
-
-    // DELETE
-    app.delete('/api/*', function(req, res, next) {
-        res.contentType('application/json');
-        next();
-    });
+//    app.post('/api/*', function(req, res, next) {
+//        res.contentType('application/json');
+//        next();
+//    });
+//
+//    app.put('/api/*', function(req, res, next) {
+//        res.contentType('application/json');
+//        next();
+//    });
+//
+//    app.delete('/api/*', function(req, res, next) {
+//        res.contentType('application/json');
+//        next();
+//    });
 
     router.get('/', function(req, res) {
         res.json({ message: 'hooray! welcome to our api!' });
