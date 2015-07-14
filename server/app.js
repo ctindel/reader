@@ -34,7 +34,7 @@ var allowCrossDomain = function(req, res, next) {
 
     next();
 }
-app.use(allowCrossDomain);
+//app.use(allowCrossDomain);
 app.set('readerLogger', logger);
 
 var server = require('http').createServer(app);
