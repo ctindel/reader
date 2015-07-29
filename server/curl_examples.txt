@@ -1,0 +1,1 @@
+curl -H "Content-Type: application/json" -X POST -d '{"username":"testuser1@example.com","password":"testUser123"}' 'http://localhost:9000/api/v1.0/oauth/token?grant_type=password'

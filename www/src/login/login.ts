@@ -1,4 +1,4 @@
-/// <reference path="typings/custom.d.ts" />
+/// <reference path="../typings/custom.d.ts" />
 
 import {Component, View, Http, Headers} from 'angular2/angular2';
 import {status, json} from '../utils/fetch';
