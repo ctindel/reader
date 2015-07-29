@@ -11,7 +11,7 @@ let template = require('./app.html');
 
 
 @Component({
-  selector: 'auth-app'
+  selector: 'reader-app'
 })
 @View({
   template: template,
