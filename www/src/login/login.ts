@@ -24,30 +24,53 @@ export class Login {
 
   login(event, username, password) {
     event.preventDefault();
-    var headers = new Headers();
-    headers.append('Accept', 'application/json');
-    headers.append('Content-Type', 'application/json');
-    this.http.post('http://localhost:9000/api/v1.0/oauth/token?grant_type=password',
-      JSON.stringify({
-        username, password
-      }),
-      { 
-        headers: headers
-      }
-    )
-    .toRx()
-    .map(status)
-    .map(json)
-    .subscribe(
-      response => {
-        localStorage.setItem('jwt', response.access_token);
-        this.router.parent.navigate('/home');
+
+    window.fetch('http://localhost:9000/api/v1.0/oauth/token?grant_type=password', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       },
-      error => {
-        alert(error.message);
-        console.log(error.message);
-      }
-    );
+      body: JSON.stringify({
+         username, password
+      })
+    })
+    .then(status)
+    .then(json)
+    .then((response) => {
+      localStorage.setItem('jwt', response.access_token);
+      this.router.parent.navigate('/home');
+    })
+    .catch((error) => {
+      alert(error.message);
+      console.log(error.message);
+    });
+
+
+//    var headers = new Headers();
+//    headers.append('Accept', 'application/json');
+//    headers.append('Content-Type', 'application/json');
+//    this.http.post('http://localhost:9000/api/v1.0/oauth/token?grant_type=password',
+//      JSON.stringify({
+//        username, password
+//      }),
+//      { 
+//        headers: headers
+//      }
+//    )
+//    .toRx()
+//    .map(status)
+//    .map(json)
+//    .subscribe(
+//      response => {
+//        localStorage.setItem('jwt', response.access_token);
+//        this.router.parent.navigate('/home');
+//      },
+//      error => {
+//        alert(error.message);
+//        console.log(error.message);
+//      }
+//    );
   }
 
   signup(event) {
