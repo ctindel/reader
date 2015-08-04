@@ -9,13 +9,12 @@ import {Signup} from '../signup/signup';
 
 let template = require('./app.html');
 
-
 @Component({
   selector: 'reader-app'
 })
 @View({
   template: template,
-  directives: [ LoggedInRouterOutlet ]
+  directives: [ LoggedInRouterOutlet, RouterLink ]
 })
 @RouteConfig([
   { path: '/',       redirectTo: '/home' },
@@ -24,6 +23,14 @@ let template = require('./app.html');
   { path: '/signup', as: 'signup', component: Signup }
 ])
 export class App {
-  constructor(public router: Router) {
-  }
+    location: Location;
+
+    constructor(public router: Router, location: Location) {
+        this.router = router;
+        this.location = location;
+    }
+
+    getLinkStyle(path) {
+        return this.location.path() === path;
+    }
 }
