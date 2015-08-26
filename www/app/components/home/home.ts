@@ -1,7 +1,7 @@
-/// <reference path="../typings/custom.d.ts" />
+/// <reference path="../../typings/custom.d.ts" />
 
 import {Component, View, coreDirectives, Http, Headers} from 'angular2/angular2';
-import {status, text} from '../utils/fetch';
+import {status, text} from '../../utils/fetch';
 import { Router} from 'angular2/router';
 
 let styles   = require('./home.css');
@@ -25,11 +25,6 @@ export class Home {
   constructor(public router: Router, public http: Http) {
     this.jwt = localStorage.getItem('jwt');
     this.decodedJwt = this.jwt && window.jwt_decode(this.jwt);
-  }
-
-  logout() {
-    localStorage.removeItem('jwt');
-    this.router.parent.navigate('/login');
   }
 
   callAnonymousApi() {

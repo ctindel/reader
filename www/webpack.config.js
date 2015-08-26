@@ -15,7 +15,7 @@ module.exports = {
       // 'zone.js/dist/long-stack-trace-zone.js',
       'reflect-metadata',
       'rtts_assert/rtts_assert',
-      './src/common/BrowserDomAdapter',
+      './app/common/BrowserDomAdapter',
       'angular2/angular2',
       'angular2/router',
       'angular2/di',
@@ -26,7 +26,7 @@ module.exports = {
       /*
       // * include any 3rd party js lib here
       */
-      './src/index'
+      './app/index'
     ]
   },
 
@@ -55,7 +55,7 @@ module.exports = {
       // we can switch between development and production
       // 'angular2': 'angular2/es6/prod',
       // 'angular2': 'angular2/es6/dev',
-      'webapp': 'src'
+      'webapp': 'app'
     }
   },
 

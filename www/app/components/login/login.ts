@@ -1,13 +1,11 @@
-/// <reference path="../typings/custom.d.ts" />
+/// <reference path="../../typings/custom.d.ts" />
 
 import {Component, View, Http, Headers} from 'angular2/angular2';
-import {status, json} from '../utils/fetch';
+import {status, json} from '../../utils/fetch';
 import { Router, RouterLink } from 'angular2/router';
-
 
 let styles   = require('./login.css');
 let template = require('./login.html');
-
 
 @Component({
   selector: 'login'

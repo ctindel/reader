@@ -1,7 +1,7 @@
 /// <reference path="../typings/custom.d.ts" />
 import {Directive, Attribute, ElementRef, DynamicComponentLoader, Injector} from 'angular2/angular2';
 import {Router, RouterOutlet} from 'angular2/router';
-import {Login} from '../login/login';
+import {Login} from '../components/login/login';
 
 @Directive({
   selector: 'router-outlet'
