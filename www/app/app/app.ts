@@ -20,17 +20,19 @@ let template = require('./app.html');
   { path: '/',       redirectTo: '/home' },
   { path: '/home',   as: 'home',   component: Home },
   { path: '/login',  as: 'login',  component: Login },
-  { path: '/signup', as: 'signup', component: Signup }
+  { path: '/signup', as: 'signup', component: Signup },
 ])
 export class App {
-    //router: Router;
+    router: Router;
     location: Location;
+    title: string;
     jwt: string;
     decodedJwt: string;
 
     constructor(public router: Router, location: Location) {
         this.router = router;
         this.location = location;
+        this.title = 'Reader';
         this.jwt = localStorage.getItem('jwt');
         this.decodedJwt = this.jwt && window.jwt_decode(this.jwt);
     }

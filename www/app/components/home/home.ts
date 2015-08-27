@@ -3,6 +3,7 @@
 import {Component, View, coreDirectives, Http, Headers} from 'angular2/angular2';
 import {status, text} from '../../utils/fetch';
 import { Router} from 'angular2/router';
+import {Feeds} from '../../components/feeds/feeds';
 
 let styles   = require('./home.css');
 let template = require('./home.html');
@@ -14,7 +15,7 @@ let template = require('./home.html');
 @View({
   styles: [ styles ],
   template: template,
-  directives: [ coreDirectives ]
+  directives: [ coreDirectives, Feeds ]
 })
 export class Home {
   jwt: string;
