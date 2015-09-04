@@ -77,6 +77,6 @@
     "typescript-simple-loader": "^0.3.2",
     "url-loader": "^0.5.5",
     "webpack": "^1.10.5",
-    "webpack-dev-server": "^1.10.1"
+    "webpack-dev-server" : "git://github.com/ctindel/webpack-dev-server.git"
   }
 }

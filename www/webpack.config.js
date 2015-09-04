@@ -36,7 +36,8 @@ var config = {
     historyApiFallback: true,
     contentBase: 'src/public',
     //contentBase: '.',
-    publicPath: '/__build__'
+    publicPath: '/__build__',
+    staticRoutes: [ { 'route': '/scripts', 'dir' : __dirname + '/node_modules'} ]
   },
 
   //

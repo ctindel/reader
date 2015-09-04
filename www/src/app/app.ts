@@ -4,10 +4,10 @@
  * Angular 2 decorators and servces
  */
 import {Directive, Component, View, LifecycleEvent} from 'angular2/angular2';
-import {Route, Redirect, RouteConfig, Router} from 'angular2/router';
+import {Route, Redirect, RouteConfig, Router, RouterLink} from 'angular2/router';
 // should be angular2/http in next release
-import {Http} from 'ngHttp/http';
-import {LoggedInRouterOutlet} from './LoggedInOutlet';
+import {Http} from 'angular2/http';
+//import {LoggedInRouterOutlet} from './LoggedInOutlet';
 import {Home} from './components/home/home';
 import {Login} from './components/login/login';
 import {Signup} from './components/signup/signup';
@@ -29,7 +29,7 @@ let template = require('./app.html');
 })
 @View({
   // needed in order to tell Angular's compiler what's in the template
-  directives: [ LoggedInRouterOutlet, CORE_DIRECTIVES, FORM_DIRECTIVES, ROUTER_DIRECTIVES ],
+  directives: [ ROUTER_DIRECTIVES, CORE_DIRECTIVES, FORM_DIRECTIVES ],
   template: template,
 })
 @RouteConfig([
@@ -45,7 +45,6 @@ export class App {
     constructor(public http: Http, public router: Router) {
         this.title = 'Reader';
         this.jwt = localStorage.getItem('jwt');
-        //this.decodedJwt = this.jwt && window.jwt_decode(this.jwt);
     }
 
     logout() {

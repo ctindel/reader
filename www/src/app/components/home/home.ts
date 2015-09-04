@@ -4,14 +4,16 @@ import {Component, View, CORE_DIRECTIVES} from 'angular2/angular2';
 import {status, text} from '../../utils/fetch';
 import {Router} from 'angular2/router';
 import {Feeds} from '../../components/feeds/feeds';
-import {Http, Headers} from 'ngHttp/http';
+import {Http, Headers} from 'angular2/http';
+import {Auth} from '../../services/auth';
 
 let styles   = require('./home.css');
 let template = require('./home.html');
 
 
 @Component({
-  selector: 'home'
+    selector: 'home',
+    injectables: [Auth]
 })
 @View({
   styles: [ styles ],
@@ -19,34 +21,27 @@ let template = require('./home.html');
   directives: [ CORE_DIRECTIVES, Feeds ]
 })
 export class Home {
-  jwt: string;
-  decodedJwt: string;
-  response: string;
-  api: string;
+    auth: Auth;
+    user: string;
+    isAuth: boolean;
 
-  constructor(public router: Router, public http: Http) {
-    this.jwt = localStorage.getItem('jwt');
-    this.decodedJwt = this.jwt && window.jwt_decode(this.jwt);
-  }
+    constructor(public router: Router, public http: Http, public auth: Auth) {
+        this.router = router;
+        this.auth = auth;
+    
+        this.isAuth = auth.isAuth();
+    
+        if (this.isAuth) {
+            this.user = this.auth.getUser();
+        } else {
+            this.router.parent.navigate('/login');
+        }
+    }
 
-  _callApi(type, url) {
-    this.response = null;
-    this.api = type;
-    var headers = new Headers();
-    headers.append('Accept', 'application/json');
-    headers.append('Content-Type', 'application/json');
-    headers.append('Authorization', 'bearer ' + this.jwt);
-    this.http.get(url, {headers: headers})
-    .toRx()
-    .map(status)
-    .map(text)
-    .subscribe(
-      response => {
-          this.response = response;
-      },
-      error => {
-          this.response = error.message;
-      }
-    )
-  }
+    logout(event) {
+        event.preventDefault();
+        this.auth.logout();
+        this.isAuth = false;
+        this.user = null;
+    }
 }

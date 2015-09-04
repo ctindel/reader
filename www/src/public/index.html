@@ -16,13 +16,15 @@
       margin: 0;
     }
   </style>
-  <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.css">
+  <link rel="stylesheet" type="text/css" href="scripts/bootstrap/dist/css/bootstrap.css">
 
   <!--
     Angular 2
     ES6 browser shim
   -->
   <script src="/lib/es6-shim.js"></script>
+  <script type="text/javascript" src="scripts/whatwg-fetch/fetch.js"></script>
+  <script type="text/javascript" src="scripts/jwt-decode/build/jwt-decode.js"></script>
 </head>
 <body>
 
@@ -32,8 +34,8 @@
 
   <!-- Commmon files to be cached -->
   <script src="/__build__/common.js"></script>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.js"></script>
+  <script src="/scripts/jquery/dist/jquery.js"></script>
+  <script src="/scripts/bootstrap/dist/js/bootstrap.js"></script>
   <!-- Angular2 files -->
   <script src="/__build__/angular2.js"></script>
   <!-- App script -->
