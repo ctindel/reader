@@ -12,7 +12,8 @@ export class Auth {
         this.token = localStorage.getItem('jwt');
         this.user = this.token && window.jwt_decode(this.token);
         console.log("Auth.constructor: this.token=" + this.token);
-        console.log("Auth.constructor: this.user=" + this.user);
+        console.log("Auth.constructor: this.user=");
+        console.dir(this.user);
     }
   
     isAuth() {
@@ -38,6 +39,10 @@ export class Auth {
         .then(status)
         .then(json)
         .then((response) => {
+            console.log("response is:");
+            console.dir(response);
+            console.log("Cookies: ");
+            console.dir(document.cookie);
             this.token = response.access_token;
             this.user = this.token && window.jwt_decode(this.token);
             localStorage.setItem('jwt', this.token);

@@ -16,9 +16,9 @@ let template = require('./home.html');
     injectables: [Auth]
 })
 @View({
+  directives: [ CORE_DIRECTIVES, Feeds ],
   styles: [ styles ],
-  template: template,
-  directives: [ CORE_DIRECTIVES, Feeds ]
+  template: template
 })
 export class Home {
     auth: Auth;

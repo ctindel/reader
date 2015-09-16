@@ -37,6 +37,7 @@ export class Login {
     .then(status)
     .then(json)
     .then((response) => {
+      console.dir(response);
       localStorage.setItem('jwt', response.access_token);
       console.log("Login.login: response.access_token=" + response.access_token);
       this.router.parent.navigate('/home');

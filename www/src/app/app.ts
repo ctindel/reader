@@ -9,6 +9,7 @@ import {Route, Redirect, RouteConfig, Router, RouterLink} from 'angular2/router'
 import {Http} from 'angular2/http';
 //import {LoggedInRouterOutlet} from './LoggedInOutlet';
 import {Home} from './components/home/home';
+import {Feeds} from './components/feeds/feeds';
 import {Login} from './components/login/login';
 import {Signup} from './components/signup/signup';
 
@@ -35,6 +36,7 @@ let template = require('./app.html');
 @RouteConfig([
   new Redirect({ path: '/',       redirectTo: '/home' }),
   new Route({ path: '/home',   as: 'home',   component: Home }),
+  new Route({ path: '/feed',   as: 'feed',   component: Feeds }),
   new Route({ path: '/login',  as: 'login',  component: Login }),
   new Route({ path: '/signup', as: 'signup', component: Signup })
 ])

@@ -35,6 +35,11 @@ FeedController.prototype.getFeeds = function(req, res) {
     var resultJSON = {feeds : []};
     var state = { feeds : [] };
 
+    if(req.authenticationError){
+        console.log("Authentication Error: ");
+        console.dir(req.authenticationError);
+    }
+
     if (undefined != req.param('includeUnreadIDs')) {
         if ('true' == req.param('includeUnreadIDs')) {
             includeUnreadIDs = true;

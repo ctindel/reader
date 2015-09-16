@@ -16,7 +16,11 @@ module.exports.addAPIRouter = function(config, app, mongoose) {
         apiKeyId: config.sp.STORMPATH_API_KEY_ID,
         apiKeySecret: config.sp.STORMPATH_API_KEY_SECRET,
         writeAccessTokenResponse: true,
-        allowedOrigins: ['http://localhost:3000']
+        //writeAccessTokenResponse: false,
+        //endOnError: false,
+        allowedOrigins: ['http://localhost:3000', 
+                         'https://localhost:3000', 
+                         'http://localhost']
     };
     var spMiddleware = stormpath.createMiddleware(spConfig);
 

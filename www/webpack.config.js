@@ -99,6 +99,7 @@ var config = {
    * rather than `module.id` for `moduleId` in `@View`
    */
   node: {
+    crypto: false,
     __filename: true
   },
 

@@ -12,6 +12,7 @@ var mongoose = require('mongoose');
 var config = require('./config/environment');
 var logger = require("./logger");
 var bodyParser = require('body-parser')
+var fs = require('fs');
 
 // Connect to database
 mongoose.connect(config.mongo.uri, config.mongo.options);
@@ -39,6 +40,9 @@ app.use(allowCrossDomain);
 app.set('readerLogger', logger);
 
 var server = require('http').createServer(app);
+//var server = require('https').createServer(
+//    {key: fs.readFileSync('key.pem'), cert: fs.readFileSync('cert.pem') },
+//    app);
 var socketio = require('socket.io')(server, {
   serveClient: (config.env === 'production') ? false : true,
   path: '/socket.io-client'
