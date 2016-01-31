@@ -1,7 +1,7 @@
 /// <reference path="../../../typings/_custom.d.ts" />
 
 import {Component, View, CORE_DIRECTIVES} from 'angular2/angular2';
-import {Http, Headers} from 'ngHttp/http';
+import {Http, Headers} from 'angular2/http';
 import {status, json} from '../../utils/fetch';
 import { Router, RouterLink } from 'angular2/router';
 

@@ -7,8 +7,8 @@ import { status, json } from '../../utils/fetch'
 import {Http, Headers} from 'angular2/http';
 
 @Component({
-    selector: 'feeds',
-    viewInjector: [Reader]
+    selector: 'feeds'
+    //viewInjector: [Reader]
 })
 @View({
     directives: [NgFor, RouterLink],
@@ -26,20 +26,21 @@ export class Feeds {
     timeoutId: number;
     feeds: Object;
     service: Reader;
+    url: String;
+
     constructor(service: Reader, http: Http) {
         console.log("Feeds.constructor");
         this.url = 'http://localhost:9000/api/v1.0/';
         //this.service = service;
         //this.feeds = this.service.getFeeds(true);
-        http
-            .get(this.url + 'feeds?includeUnreadIDs=true',
-                 { headers: new Headers({'Authorization' : 'Bearer ' +
-localStorage.getItem('jwt') })})
-            .toRx()
-            .map(res => res.json())
-            .subscribe(
-                data => this.getFeedsCB(data),
-                err => this.getFeedsErrCb(err));
+//        http
+//            .get(this.url + 'feeds?includeUnreadIDs=true',
+//                 { headers: new Headers({'Authorization' : 'Bearer ' + localStorage.getItem('jwt') })})
+//            .toRx()
+//            .map(res => res.json())
+//            .subscribe(
+//                data => this.getFeedsCB(data),
+//                err => this.getFeedsErrCB(err));
 //
 //        this.service.getFeeds(true)
 //            .then(status)
@@ -51,6 +52,8 @@ localStorage.getItem('jwt') })})
 //            });
     }
 
+    getFeeds(includeUnreadIDs) {
+    }
     getFeedsCB(data) {
         this.feeds=data.feeds;
         console.log(this.feeds);
