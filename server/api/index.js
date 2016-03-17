@@ -3,7 +3,7 @@
 var express = require('express');
 var UserController = require('./user/user.controller');
 var FeedController = require('./feed/feed.controller');
-var stormpath = require('stormpath-sdk-express');
+var exSp = require('express-stormpath');
 
 module.exports.addAPIRouter = function(config, app, mongoose) { 
 
@@ -11,23 +11,31 @@ module.exports.addAPIRouter = function(config, app, mongoose) {
     var models = require('./models/models')(mongoose);
     app.set('readerModels', models);
 
-    var spConfig = {
-        appHref: config.sp.STORMPATH_APP_HREF,
-        apiKeyId: config.sp.STORMPATH_API_KEY_ID,
-        apiKeySecret: config.sp.STORMPATH_API_KEY_SECRET,
-        writeAccessTokenResponse: true,
-        //writeAccessTokenResponse: false,
-        //endOnError: false,
-        allowedOrigins: ['http://localhost:3000', 
-                         'https://localhost:3000', 
-                         'http://localhost']
-    };
-    var spMiddleware = stormpath.createMiddleware(spConfig);
+// Old settings from before stormpath-sdk-express was deprecated
+// Keeping here until everything works properly again
+//    var spConfig = {
+//        appHref: config.sp.STORMPATH_APP_HREF,
+//        apiKeyId: config.sp.STORMPATH_API_KEY_ID,
+//        apiKeySecret: config.sp.STORMPATH_API_KEY_SECRET,
+//        writeAccessTokenResponse: true,
+//        allowedOrigins: ['http://localhost:3000', 
+//                         'https://localhost:3000', 
+//                         'http://localhost']
+//    };
+//    var spMiddleware = stormpath.createMiddleware(spConfig);
 
-    var uc = new UserController(app, spMiddleware, mongoose);
-    var fc = new FeedController(app, spMiddleware, mongoose);
+    router.use(exSp.init(app, {
+        apiKey : { 
+            id: config.sp.STORMPATH_API_KEY_ID,
+            secret: config.sp.STORMPATH_API_KEY_SECRET 
+        },
+        application: {
+            href: config.sp.STORMPATH_APP_HREF
+        }
+    }));
 
-    spMiddleware.attachDefaults(router);
+    var uc = new UserController(app, mongoose);
+    var fc = new FeedController(app, mongoose);
 
     router.use(function(req, res, next) {
         res.contentType('application/json');
@@ -56,16 +64,16 @@ module.exports.addAPIRouter = function(config, app, mongoose) {
     router.post('/user/enroll', uc.enroll);
 
     router.get('/feeds', 
-               spMiddleware.authenticate, fc.getFeeds);
-    router.put('/feeds/subscribe', spMiddleware.authenticate, fc.subscribe);
+               exSp.loginRequired, fc.getFeeds);
+    router.put('/feeds/subscribe', exSp.loginRequired, fc.subscribe);
     router.delete('/feeds/:feedID', 
-        spMiddleware.authenticate, fc.unsubscribe);
+        exSp.loginRequired, fc.unsubscribe);
     router.get('/feeds/:feedID/entries', 
-               spMiddleware.authenticate, fc.getFeedEntries);
+               exSp.loginRequired, fc.getFeedEntries);
     router.put('/feeds/:feedID', 
-               spMiddleware.authenticate, fc.updateFeedReadStatus);
+               exSp.loginRequired, fc.updateFeedReadStatus);
     router.put('/feeds/:feedID/entries/:entryID',
-        spMiddleware.authenticate, fc.updateFeedEntryReadStatus);
+        exSp.loginRequired, fc.updateFeedEntryReadStatus);
 
     app.use('/api/v1.0', router);
 }

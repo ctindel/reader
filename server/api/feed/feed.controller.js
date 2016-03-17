@@ -9,7 +9,6 @@ var _UserModel = null;
 var _FeedModel = null;
 var _FeedEntryModel = null;
 var _UserFeedEntryModel = null;
-var _stormpath = null;
 var _logger = null;
 
 module.exports = FeedController;
@@ -21,7 +20,6 @@ function FeedController(app, stormpath, mongoose) {
     _FeedModel = _models.FeedModel;
     _FeedEntryModel = _models.FeedEntryModel;
     _UserFeedEntryModel = _models.UserFeedEntryModel;
-    _stormpath = stormpath;
     _logger = app.get('readerLogger');
 }
 

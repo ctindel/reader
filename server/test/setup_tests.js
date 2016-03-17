@@ -8,7 +8,7 @@ var app = null;
 var testAccounts = null;
 var config = require('../config/environment');
 var mongodb = require('mongodb');
-assert = require('assert');
+var assert = require('assert');
 
 var apiKey = new stormpath.ApiKey(
     config.sp.STORMPATH_API_KEY_ID,

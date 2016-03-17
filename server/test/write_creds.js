@@ -12,6 +12,7 @@ var uri = config.test.apiServerURI;
 var mongoClient = mongodb.MongoClient
 var reader_db = null;
 var users_array = null;
+var qs = require('qs');
 
 writeCredsArray = [
     function connectDB(callback) {
@@ -32,16 +33,22 @@ writeCredsArray = [
     function getUserTokens(callback) {
         console.log("getUserTokens");
         var numTokens = 0;
+        var postData = qs.stringify({ 'grant_type' : 'client_credentials' });
 
         users_array.forEach(function genToken(user, index, array) {
             var options = {
                 hostname: config.test.apiServer,
                 auth: user.spApiKeyId + ':' + user.spApiKeySecret,
                 port: config.test.apiServerPort,
-                path: '/api/v1.0/oauth/token?grant_type=client_credentials',
-                method: 'POST'
+                path: '/api/v1.0/oauth/token',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
             };
-            http.request(options, function(res) {
+            
+            var req = http.request(options, function(res) {
                 var responseString = '';
 
                 res.setEncoding('utf8');
@@ -62,7 +69,9 @@ writeCredsArray = [
                     }
                 });
 
-            }).end();
+            });
+            req.write(postData);
+            req.end();
         }); 
     },
     function writeCreds(callback) {

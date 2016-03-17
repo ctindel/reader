@@ -5,16 +5,14 @@ var validator = require('validator');
 var _mongoose = null;
 var _models = null;
 var _UserModel = null;
-var _stormpath = null;
 var _logger = null;
 
 module.exports = UserController;
 
-function UserController(app, stormpath, mongoose) {
+function UserController(app, mongoose) {
     _mongoose = mongoose;
     _models = app.get('readerModels');
     _UserModel = _models.UserModel;
-    _stormpath = stormpath;
     _logger = app.get('readerLogger');
 }
 
@@ -76,12 +74,13 @@ UserController.prototype.enroll = function(req, res) {
             account.password = req.param('password');
 
             _logger.debug("Calling stormPath createAccount API");
-            _stormpath.getApplication().createAccount(account, function(err, acc) {
+            req.app.get('stormpathApplication').createAccount(account, function(err, acc) {
                 if (err) {
                     _logger.debug("Stormpath error: " + err.developerMessage);
                     res.status(400);
                     res.json({error: err.userMessage});
                 } else {
+                    console.dir(acc);
                     acc.createApiKey(function(err,apiKey) {
                         if (err) {
                             _logger.debug("Stormpath error: " + err.developerMessage);
