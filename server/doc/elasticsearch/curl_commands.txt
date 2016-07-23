@@ -1,0 +1,1 @@
+curl -XPOST '192.168.93.197:9200/reader/feedEntry/_search' -d @body_sqs.txt

@@ -11,15 +11,28 @@ var express = require('express');
 var mongoose = require('mongoose');
 var config = require('./config/environment');
 var logger = require("./logger");
-var bodyParser = require('body-parser')
+var bodyParser = require('body-parser');
+var elasticsearch = require('elasticsearch');
 var fs = require('fs');
 
 // Connect to database
 mongoose.connect(config.mongo.uri, config.mongo.options);
 mongoose.set('debug', true);
 
+// Connect to Elastic Search
+var elasticClient = new elasticsearch.Client({
+    host: config.es.host,
+    log: config.es.logLevel,
+    sniffOnStart: true,
+    sniffInterval: config.es.sniffInterval
+});
+
 // Setup server
 var app = express();
+
+app.set('mongoose', mongoose);
+app.set('elasticClient', elasticClient);
+app.set('config', config);
 
 //var morgan = require('morgan')('combined', { "stream": logger.stream });
 var morgan = require('morgan');

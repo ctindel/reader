@@ -2,6 +2,7 @@
 
 var _ = require('lodash');
 var async = require('async');
+var util = require('util');
 
 var _mongoose = null;
 var _models = null;
@@ -189,6 +190,141 @@ FeedController.prototype.getFeeds = function(req, res) {
     });
 };
 
+FeedController.prototype.getFeedSearch = function(req, res) {
+    _logger.debug('Router for GET /feeds/search');
+
+    var user = null;
+    var errStr = null;
+    var searchQuery = null;
+    var esResponse = null;
+    var resultStatus = null;
+    var resultJSON = {feeds : []};
+    var state = { feeds : [] };
+
+    if(req.authenticationError){
+        console.log("Authentication Error: ");
+        console.dir(req.authenticationError);
+    }
+
+    if (undefined == req.param('searchQuery')) {
+        errStr = "Undefined searchQuery parameter";
+        _logger.debug(errStr);
+        res.status(400);
+        res.json({error: errStr});
+        return;
+    }
+    searchQuery = req.param('searchQuery').trim();
+    if (null == searchQuery || '' == searchQuery) {
+        errStr = "Invalid empty searchQuery parameter";
+        _logger.debug(errStr);
+        res.status(400);
+        res.json({error: errStr});
+        return;
+    }
+
+    var getUserFeedsTasks = [
+        function findUser(cb) {
+            _UserModel.find({'email' : req.user.email}, function(err, users) {
+                if (err) {
+                    errStr = 'Internal error with mongoose looking user ' + req.user.email;
+                    resultStatus = 400;
+                    resultJSON = { error : errStr };
+                    _logger.debug(errStr);
+                    cb(new Error(errStr));
+                }
+
+                if (users.length == 0) {
+                    errStr = 'Stormpath returned an email ' + req.user.email + ' for which we dont have a matching user object';
+                    resultStatus = 400;
+                    resultJSON = { error : errStr };
+                    _logger.debug(errStr);
+                    cb(new Error(errStr));
+                }
+                user = users[0];
+                cb(null);
+            });
+        },
+        function searchFeeds(cb) {
+            var elasticClient = req.app.get('elasticClient');
+            var config = req.app.get('config');
+            elasticClient.search({
+                'index' : config.es.indexName,
+                'type' : config.es.feedTypeName,
+                'q' : searchQuery},
+                function (err, response) {
+                    if (err) {
+                        errStr = 'Internal error with elasticClient.search on index' +
+                            config.es.indexName + ', type ' + config.es.feedTypeName +
+                            ' for query "' + searchQuery + '": ' +
+                            util.inspect(err, false, null);
+                        resultStatus = 400;
+                        resultJSON = { error : errStr };
+                        _logger.debug(errStr);
+                        return cb(new Error(errStr));
+                    }
+                    console.log(util.inspect(response, false, null));
+                    esResponse = response;
+                    resultJSON = {};
+                    return cb(null);
+                }
+            );
+        },
+        // function getFeeds(cb) {
+        //     _FeedModel.find().where('_id').in(user.subs).lean().exec(function getFeeds(err, userFeeds) {
+        //         if (err) {
+        //             errStr = 'Error finding subs for user ' + user.email;
+        //             resultStatus = 400;
+        //             resultJSON = { error : errStr };
+        //             _logger.debug(errStr);
+        //             cb(new Error(errStr));
+        //         }
+        //
+        //         if (userFeeds.length == 0) {
+        //             _logger.debug('Empty set of feeds for user ' + user.email);
+        //             cb(new Error("Not really an error but we want to shortcircuit the series"));
+        //         } else {
+        //             state.feeds = userFeeds;
+        //             cb(null);
+        //         }
+        //     });
+        // },
+        function formResponse(cb) {
+            var feedsProcessed = 0;
+
+            state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
+                var userUnreadCount = feed.unreadEntryIDs.length;
+
+                var feedRes =
+                    { _id : feed._id,
+                      feedURL : feed.feedURL,
+                      title : feed.title,
+                      state : feed.state,
+                      link : feed.link,
+                      description : feed.description,
+                      unreadCount : feed.unreadEntryIDs.length };
+
+                if (true == includeUnreadIDs) {
+                    feedRes.unreadEntryIDs = feed.unreadEntryIDs;
+                }
+                resultJSON.feeds.push(feedRes);
+                feedsProcessed++;
+                if (feedsProcessed == feedArray.length) {
+                    cb(null);
+                }
+            });
+        }
+    ]
+
+    async.series(getUserFeedsTasks, function finalizer(err, results) {
+        if (null == resultStatus) {
+            res.status(200);
+        } else {
+            res.status(resultStatus);
+        }
+        res.json(resultJSON);
+    });
+};
+
 FeedController.prototype.subscribe = function(req, res) {
     _logger.debug('Router for PUT /feeds/subscribe');
 
@@ -298,6 +434,198 @@ FeedController.prototype.subscribe = function(req, res) {
     ]
 
     async.series(subFeedTasks, function finalizer(err, results) {
+        if (null == resultStatus) {
+            res.status(200);
+        } else {
+            res.status(resultStatus);
+        }
+        res.json(resultJSON);
+    });
+};
+
+// Users can send in search queries in this format:
+//  https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-simple-query-string-query.html#query-dsl-simple-query-string-query
+FeedController.prototype.getFeedEntrySearch = function(req, res) {
+    var feedID = req.params.feedID;
+    var user = null;
+    var errStr = null;
+    var searchQuery = null;
+    var pageIndex = null;
+    var countPerPage = null;
+    var esResponse = null;
+    var resultStatus = null;
+    var resultJSON = {feeds : []};
+    var state = { feeds : [] };
+
+    _logger.debug('Router for GET /feeds/' + feedID + '/search');
+
+    var DEFAULT_COUNT_PER_PAGE = 25;
+    var TITLE_FIELD_BOOST_FACTOR = 3;
+
+    if(req.authenticationError){
+        console.log("Authentication Error: ");
+        console.dir(req.authenticationError);
+    }
+
+    if (undefined == req.param('searchQuery')) {
+        errStr = "Undefined searchQuery parameter";
+        _logger.debug(errStr);
+        res.status(400);
+        res.json({error: errStr});
+        return;
+    }
+    searchQuery = req.param('searchQuery').trim();
+    if (null == searchQuery || '' == searchQuery) {
+        errStr = "Invalid empty searchQuery parameter";
+        _logger.debug(errStr);
+        res.status(400);
+        res.json({error: errStr});
+        return;
+    }
+    if (null == req.param('pageIndex')) {
+        pageIndex = 0;
+    } else {
+        pageIndex = parseInt(req.param('pageIndex'));
+        if (NaN == pageIndex) {
+            errStr = "Invalid pageIndex parameter " + pageIndex;
+            _logger.debug(errStr);
+            res.status(400);
+            res.json({error: errStr});
+            return;
+        }
+    }
+
+    if (null == req.param('countPerPage')) {
+        countPerPage = DEFAULT_COUNT_PER_PAGE;
+    } else {
+        countPerPage = parseInt(req.param('countPerPage'));
+        if (NaN == countPerPage) {
+            errStr = "Invalid countPerPage parameter " + countPerPage;
+            _logger.debug(errStr);
+            res.status(400);
+            res.json({error: errStr});
+            return;
+        }
+    }
+
+    _logger.debug('searchQuery is ' + searchQuery);
+
+    var getFeedSearchTasks = [
+        function findUser(cb) {
+            _UserModel.find({'email' : req.user.email}, function(err, users) {
+                if (err) {
+                    errStr = 'Internal error with mongoose looking user ' + req.user.email;
+                    resultStatus = 400;
+                    resultJSON = { error : errStr };
+                    _logger.debug(errStr);
+                    cb(new Error(errStr));
+                }
+
+                if (users.length == 0) {
+                    errStr = 'Stormpath returned an email ' + req.user.email + ' for which we dont have a matching user object';
+                    resultStatus = 400;
+                    resultJSON = { error : errStr };
+                    _logger.debug(errStr);
+                    cb(new Error(errStr));
+                }
+                user = users[0];
+                cb(null);
+            });
+        },
+        function verifyFeed(cb) {
+            if (-1 == user.subs.indexOf(feedID)) {
+                errStr = 'User not subscribed to feed ' + feedID;
+                resultStatus = 404;
+                resultJSON = { error : errStr };
+                _logger.debug(errStr);
+                return cb(new Error(errStr));
+            }
+            cb(null);
+        },
+        function searchFeedEntries(cb) {
+            var elasticClient = req.app.get('elasticClient');
+            var config = req.app.get('config');
+            var query = {
+                'index' : config.es.indexName,
+                'type' : config.es.feedEntryTypeName,
+                'body' : {
+                    'query' : {
+                        'bool' : {
+                            'should' : {
+                                'simple_query_string' : {
+                                    'query': searchQuery,
+                                    // 'analyzer': 'snowball',
+                                    'fields': ['title'],
+                                    'default_operator': 'and',
+                                    'boost' : TITLE_FIELD_BOOST_FACTOR
+                                },
+                            },
+                            'should' : {
+                                'simple_query_string' : {
+                                    'query': searchQuery,
+                                    // 'analyzer': 'snowball',
+                                    'fields': ['description', 'content', 'summary'],
+                                    'default_operator': 'and'
+                                },
+                            },
+                            'filter' : [
+                                {
+                                    'term' : { 'feedID' : feedID }
+                                }
+                            ]
+
+                        }
+                    },
+                    'from' : countPerPage * (pageIndex),
+                    'size' : countPerPage,
+                    'sort' : [
+                        {
+                            'publishedDate': {
+                                'missing': '_last',
+                                'unmapped_type': 'date',
+                                'order': 'desc'
+                            }
+                        },
+                        '_score'
+                    ],
+                    'track_scores' : true
+                }
+            };
+            elasticClient.search(query, function (err, response) {
+                if (err) {
+                    errStr = 'Internal error with elasticClient.search on index' +
+                        config.es.indexName + ', type ' + config.es.feedEntryTypeName +
+                        ' for query "' + searchQuery + '": ' +
+                        util.inspect(err, false, null);
+                    resultStatus = 400;
+                    resultJSON = { error : errStr };
+                    _logger.debug(errStr);
+                    return cb(new Error(errStr));
+                }
+                // console.log(util.inspect(response, false, null));
+                esResponse = response;
+                esResponse['_id'] = esResponse['mongoID'];
+                console.log('response size: ' + esResponse.hits.hits.length);
+                delete esResponse['mongoID'];
+                return cb(null);
+            });
+        },
+        function formResponse(cb) {
+            var feedsProcessed = 0;
+
+            resultJSON = {
+                'feedID' : feedID,
+                'searchQuery' : searchQuery,
+                'pageIndex' : pageIndex,
+                'entries' : esResponse.hits.hits.map(function(obj) {
+                    return obj['_source'];
+                })
+            };
+            cb(null);
+        }
+    ]
+
+    async.series(getFeedSearchTasks, function finalizer(err, results) {
         if (null == resultStatus) {
             res.status(200);
         } else {
@@ -949,4 +1277,3 @@ FeedController.prototype.updateFeedEntryReadStatus = function(req, res) {
         res.json(resultJSON);
     });
 };
-

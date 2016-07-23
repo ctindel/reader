@@ -10,14 +10,6 @@ import copy
 from singletonmixin import Singleton
 from elasticsearch import Elasticsearch
 
-ES_INDEX_NAME = 'reader'
-
-es = Elasticsearch(
-    ['192.168.93.197'],
-    use_ssl=False,
-    verify_certs=False,
-)
-
 class Config(Singleton):
     def __init__(self):
         stream = file('config/config.yaml', 'r')
@@ -26,6 +18,18 @@ class Config(Singleton):
         return self.config['db']['url']
     def getDBName(self):
         return self.config['db']['dbName']
+    def getElasticSearchHost(self):
+        return self.config['es']['host']
+    def getElasticSearchIndexName(self):
+        return self.config['es']['indexName']
+    def getElasticSearchFeedEntryDocType(self):
+        return self.config['es']['feedEntryDocType']
+
+es = Elasticsearch(
+    [Config.getInstance().getElasticSearchHost()],
+    use_ssl=False,
+    verify_certs=False,
+)
 
 class MDBConnection(Singleton):
 
@@ -133,10 +137,10 @@ class FeedEntry:
         self.feed = feed
 
     # _id is a reserved key in elastic search so we need
-    #  to store this value as mongo_id instead
+    #  to store this value as mongoID instead
     def getAsElasticSearchDict(self):
         esDict = copy.deepcopy(self.entry_map)
-        esDict['mongo_id'] = esDict['_id']
+        esDict['mongoID'] = esDict['_id']
         del esDict['_id']
         return esDict
 
@@ -218,8 +222,8 @@ class FeedEntry:
         self.entry_map = new_doc
         esBody = json.loads(json.dumps(self.getAsElasticSearchDict(), cls=ESEncoder))
         es.index(
-            index = ES_INDEX_NAME, 
-            doc_type='feedEntry', 
+            index = Config.getInstance().getElasticSearchIndexName(),
+            doc_type=Config.getInstance().getElasticSearchFeedEntryDocType(),
             id=self.getID(), 
             body = esBody)
 
@@ -246,10 +250,10 @@ class Feed:
         self.feed_map['state'] = 'new'
 
     # _id is a reserved key in elastic search so we need
-    #  to store this value as mongo_id instead
+    #  to store this value as mongoID instead
     def getAsElasticSearchDict(self):
         esDict = copy.deepcopy(self.feed_map)
-        esDict['mongo_id'] = esDict['_id']
+        esDict['mongoID'] = esDict['_id']
         del esDict['_id']
         return esDict
 
@@ -438,12 +442,6 @@ class Feed:
                                              self.feed_map['feedURL']}, 
                                              update = self.feed_map, upsert = True, new = True)
         self.feed_map = new_doc
-        esBody = json.loads(json.dumps(self.getAsElasticSearchDict(), cls=ESEncoder))
-        es.index(
-            index = ES_INDEX_NAME, 
-            doc_type='feed',
-            id=self.getID(), 
-            body = esBody)
         for e in self.getEntries():
             e.save()
 

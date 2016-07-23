@@ -1,0 +1,34 @@
+
+{
+    "explain" : true,            
+    "query" : {
+        "bool" : {
+            "must" : {
+                "simple_query_string" : {
+                    "query": "restaurant",
+                    "analyzer": "snowball",
+                    "fields": ["description", "content", "summary", "title"],
+                    "default_operator": "and"
+                }
+            },
+            "filter" : [
+                {
+                    "term" : { "feedID" : "5589c68a54d4ce4f533b77a7" }
+                }
+            ]
+        }
+    },
+    "from" : 0,
+    "size" : 2,
+    "sort" : [
+        {
+            "publishedDate": {
+                "missing": "_last",
+                "unmapped_type": "date",
+                "order": "desc"
+            }
+        },
+        "_score"
+    ],
+    "track_scores" : true
+}

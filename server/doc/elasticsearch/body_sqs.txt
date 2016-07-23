@@ -1,0 +1,41 @@
+
+{
+    "explain" : true,            
+    "query" : {
+        "bool" : {
+            "should" : {
+                "simple_query_string" : {
+                    "query": "restaurant",
+                    "fields": ["title"],
+                    "default_operator": "and",
+                    "boost" : 3
+                }
+            },
+            "should" : {
+                "simple_query_string" : {
+                    "query": "restaurant",
+                    "fields": ["description", "content", "summary"],
+                    "default_operator": "and"
+                }
+            },
+            "filter" : [
+                {
+                    "term" : { "feedID" : "5589c68a54d4ce4f533b77a7" }
+                }
+            ]
+        }
+    },
+    "from" : 0,
+    "size" : 2,
+    "sort" : [
+        {
+            "publishedDate": {
+                "missing": "_last",
+                "unmapped_type": "date",
+                "order": "desc"
+            }
+        },
+        "_score"
+    ],
+    "track_scores" : true
+}
