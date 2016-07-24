@@ -2,10 +2,13 @@
 
 import feedparser
 import pymongo
+import json
 import bson
 import time, datetime
 import yaml
+import copy
 from singletonmixin import Singleton
+from elasticsearch import Elasticsearch
 
 class Config(Singleton):
     def __init__(self):
@@ -15,6 +18,18 @@ class Config(Singleton):
         return self.config['db']['url']
     def getDBName(self):
         return self.config['db']['dbName']
+    def getElasticSearchHost(self):
+        return self.config['es']['host']
+    def getElasticSearchIndexName(self):
+        return self.config['es']['indexName']
+    def getElasticSearchFeedEntryDocType(self):
+        return self.config['es']['feedEntryDocType']
+
+es = Elasticsearch(
+    [Config.getInstance().getElasticSearchHost()],
+    use_ssl=False,
+    verify_certs=False,
+)
 
 class MDBConnection(Singleton):
 
@@ -24,6 +39,19 @@ class MDBConnection(Singleton):
         self.db = self.client[self.config.getDBName()]
     def getDB(self):
         return self.db
+
+class ESEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bson.objectid.ObjectId):
+            return str(obj)
+        elif isinstance(obj, datetime.datetime):
+            return obj.strftime('%Y-%m-%dT%H:%M:%S%z')
+        elif isinstance(obj, time):
+            return obj.strftime('%H:%M:%S')
+        elif hasattr(obj, 'to_json'):
+            return obj.to_json()
+        else:
+            return super(CustomEncoder, self).default(obj)
 
 def getFeeds(filterMap):
     feeds = []
@@ -108,8 +136,13 @@ class FeedEntry:
         self.entry_map = {}
         self.feed = feed
 
-    def getAsDict(self):
-        return self.entry_map
+    # _id is a reserved key in elastic search so we need
+    #  to store this value as mongoID instead
+    def getAsElasticSearchDict(self):
+        esDict = copy.deepcopy(self.entry_map)
+        esDict['mongoID'] = esDict['_id']
+        del esDict['_id']
+        return esDict
 
     def loadFromFeed(self, entry):
         if 'title' in entry:
@@ -187,6 +220,12 @@ class FeedEntry:
                                                    update = self.entry_map, 
                                                    upsert = True, new = True)
         self.entry_map = new_doc
+        esBody = json.loads(json.dumps(self.getAsElasticSearchDict(), cls=ESEncoder))
+        es.index(
+            index = Config.getInstance().getElasticSearchIndexName(),
+            doc_type=Config.getInstance().getElasticSearchFeedEntryDocType(),
+            id=self.getID(), 
+            body = esBody)
 
 class Feed:
 
@@ -210,15 +249,13 @@ class Feed:
         self.unread_count = 0
         self.feed_map['state'] = 'new'
 
-    def getAsDict(self, include_entries):
-        if False == include_entries:
-            return dict(self.feed_map.items() + {'unread_count' : self.unread_count}.items())
-        else:
-            entries = []
-            for e in self.entries:
-                entries.append(e.getAsDict())
-            return dict(self.feed_map.items() + 
-                        {'entries': entries, 'unread_count' : self.unread_count}.items())
+    # _id is a reserved key in elastic search so we need
+    #  to store this value as mongoID instead
+    def getAsElasticSearchDict(self):
+        esDict = copy.deepcopy(self.feed_map)
+        esDict['mongoID'] = esDict['_id']
+        del esDict['_id']
+        return esDict
 
     def setUnreadCount(self, count):
         self.unread_count = count

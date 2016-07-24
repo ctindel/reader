@@ -8,6 +8,17 @@ module.exports = {
         uri: 'mongodb://localhost/reader-dev'
     },
 
+    // Elastic Search
+    //  sniffInterval is set to 5 minutes
+    es: {
+        host: '192.168.93.197:9200',
+        logLevel: 'debug',
+        sniffInterval: 300000,
+        indexName: 'reader',
+        feedTypeName: 'feed',
+        feedEntryTypeName: 'feedEntry'
+    },
+
     sp: {
         STORMPATH_API_KEY_ID: '2XWKBCBT8JXO4PE4OFM6RLZIQ',
         STORMPATH_API_KEY_SECRET: 'TimVflOwd7zkVH6wOLdRg0p7cVU+MhQRgSu3mI3nJkc',

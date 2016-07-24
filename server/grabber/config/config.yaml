@@ -4,3 +4,7 @@ logging:
 db:
     url: mongodb://localhost
     dbName: reader-dev
+es:
+    host: 192.168.93.197
+    indexName: reader
+    feedEntryDocType: feedEntry
