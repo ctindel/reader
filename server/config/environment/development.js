@@ -15,7 +15,6 @@ module.exports = {
         logLevel: 'debug',
         sniffInterval: 300000,
         indexName: 'reader',
-        feedTypeName: 'feed',
         feedEntryTypeName: 'feedEntry'
     },
 
