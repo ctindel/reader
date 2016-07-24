@@ -65,10 +65,8 @@ module.exports.addAPIRouter = function(config, app, mongoose) {
 
     router.get('/feeds',
                exSp.loginRequired, fc.getFeeds);
-    router.get('/feeds/search',
-               exSp.loginRequired, fc.getFeedSearch);
     router.put('/feeds/subscribe', exSp.loginRequired, fc.subscribe);
-    router.get('/feeds/:feedID/search', 
+    router.get('/feeds/:feedID/search',
                exSp.loginRequired, fc.getFeedEntrySearch);
     router.delete('/feeds/:feedID',
         exSp.loginRequired, fc.unsubscribe);

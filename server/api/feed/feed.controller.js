@@ -190,141 +190,6 @@ FeedController.prototype.getFeeds = function(req, res) {
     });
 };
 
-FeedController.prototype.getFeedSearch = function(req, res) {
-    _logger.debug('Router for GET /feeds/search');
-
-    var user = null;
-    var errStr = null;
-    var searchQuery = null;
-    var esResponse = null;
-    var resultStatus = null;
-    var resultJSON = {feeds : []};
-    var state = { feeds : [] };
-
-    if(req.authenticationError){
-        console.log("Authentication Error: ");
-        console.dir(req.authenticationError);
-    }
-
-    if (undefined == req.param('searchQuery')) {
-        errStr = "Undefined searchQuery parameter";
-        _logger.debug(errStr);
-        res.status(400);
-        res.json({error: errStr});
-        return;
-    }
-    searchQuery = req.param('searchQuery').trim();
-    if (null == searchQuery || '' == searchQuery) {
-        errStr = "Invalid empty searchQuery parameter";
-        _logger.debug(errStr);
-        res.status(400);
-        res.json({error: errStr});
-        return;
-    }
-
-    var getUserFeedsTasks = [
-        function findUser(cb) {
-            _UserModel.find({'email' : req.user.email}, function(err, users) {
-                if (err) {
-                    errStr = 'Internal error with mongoose looking user ' + req.user.email;
-                    resultStatus = 400;
-                    resultJSON = { error : errStr };
-                    _logger.debug(errStr);
-                    cb(new Error(errStr));
-                }
-
-                if (users.length == 0) {
-                    errStr = 'Stormpath returned an email ' + req.user.email + ' for which we dont have a matching user object';
-                    resultStatus = 400;
-                    resultJSON = { error : errStr };
-                    _logger.debug(errStr);
-                    cb(new Error(errStr));
-                }
-                user = users[0];
-                cb(null);
-            });
-        },
-        function searchFeeds(cb) {
-            var elasticClient = req.app.get('elasticClient');
-            var config = req.app.get('config');
-            elasticClient.search({
-                'index' : config.es.indexName,
-                'type' : config.es.feedTypeName,
-                'q' : searchQuery},
-                function (err, response) {
-                    if (err) {
-                        errStr = 'Internal error with elasticClient.search on index' +
-                            config.es.indexName + ', type ' + config.es.feedTypeName +
-                            ' for query "' + searchQuery + '": ' +
-                            util.inspect(err, false, null);
-                        resultStatus = 400;
-                        resultJSON = { error : errStr };
-                        _logger.debug(errStr);
-                        return cb(new Error(errStr));
-                    }
-                    console.log(util.inspect(response, false, null));
-                    esResponse = response;
-                    resultJSON = {};
-                    return cb(null);
-                }
-            );
-        },
-        // function getFeeds(cb) {
-        //     _FeedModel.find().where('_id').in(user.subs).lean().exec(function getFeeds(err, userFeeds) {
-        //         if (err) {
-        //             errStr = 'Error finding subs for user ' + user.email;
-        //             resultStatus = 400;
-        //             resultJSON = { error : errStr };
-        //             _logger.debug(errStr);
-        //             cb(new Error(errStr));
-        //         }
-        //
-        //         if (userFeeds.length == 0) {
-        //             _logger.debug('Empty set of feeds for user ' + user.email);
-        //             cb(new Error("Not really an error but we want to shortcircuit the series"));
-        //         } else {
-        //             state.feeds = userFeeds;
-        //             cb(null);
-        //         }
-        //     });
-        // },
-        function formResponse(cb) {
-            var feedsProcessed = 0;
-
-            state.feeds.forEach(function processFeed(feed, feedIndex, feedArray) {
-                var userUnreadCount = feed.unreadEntryIDs.length;
-
-                var feedRes =
-                    { _id : feed._id,
-                      feedURL : feed.feedURL,
-                      title : feed.title,
-                      state : feed.state,
-                      link : feed.link,
-                      description : feed.description,
-                      unreadCount : feed.unreadEntryIDs.length };
-
-                if (true == includeUnreadIDs) {
-                    feedRes.unreadEntryIDs = feed.unreadEntryIDs;
-                }
-                resultJSON.feeds.push(feedRes);
-                feedsProcessed++;
-                if (feedsProcessed == feedArray.length) {
-                    cb(null);
-                }
-            });
-        }
-    ]
-
-    async.series(getUserFeedsTasks, function finalizer(err, results) {
-        if (null == resultStatus) {
-            res.status(200);
-        } else {
-            res.status(resultStatus);
-        }
-        res.json(resultJSON);
-    });
-};
-
 FeedController.prototype.subscribe = function(req, res) {
     _logger.debug('Router for PUT /feeds/subscribe');
 
@@ -486,8 +351,9 @@ FeedController.prototype.getFeedEntrySearch = function(req, res) {
         pageIndex = 0;
     } else {
         pageIndex = parseInt(req.param('pageIndex'));
-        if (NaN == pageIndex) {
-            errStr = "Invalid pageIndex parameter " + pageIndex;
+        console.log('pageIndex is ' + pageIndex);
+        if (isNaN(pageIndex)) {
+            errStr = "Invalid pageIndex parameter " + req.param('pageIndex');
             _logger.debug(errStr);
             res.status(400);
             res.json({error: errStr});
@@ -499,8 +365,8 @@ FeedController.prototype.getFeedEntrySearch = function(req, res) {
         countPerPage = DEFAULT_COUNT_PER_PAGE;
     } else {
         countPerPage = parseInt(req.param('countPerPage'));
-        if (NaN == countPerPage) {
-            errStr = "Invalid countPerPage parameter " + countPerPage;
+        if (isNaN(countPerPage)) {
+            errStr = "Invalid countPerPage parameter " + req.param('countPerPage');
             _logger.debug(errStr);
             res.status(400);
             res.json({error: errStr});
