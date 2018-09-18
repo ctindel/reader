@@ -1,18 +1,59 @@
 import React, { Component } from 'react';
+import $ from 'jquery';
 import TwitterLogin from 'react-twitter-auth';
 import FacebookLogin from 'react-facebook-login';
 import { GoogleLogin } from 'react-google-login';
 import config from './config.json';
 
+//class Feedlist extends Component {
+//    renderFeedListEntry(feed) {
+//        return (
+//            <li key={f.feedID}>
+//                <div>feed.feedName</div>
+//            </li>
+//        );
+//    }
+//    
+//    render() {
+//        feeds = this.props.feeds.map(f => {
+//                return (
+//                    renderFeedListEntry(f);
+//                );
+//            }
+//        );
+//        return feeds;
+//    }
+//}
+
 class App extends Component {
 
     constructor() {
         super();
-        this.state = { isAuthenticated: false, user: null, token: ''};
+        this.state = { isAuthenticated: false, user: null, token: '', feeds: []};
+        if (sessionStorage.getItem("myUser")) {
+            // Restore the contents of the text field
+            var tmpUser = sessionStorage.getItem("myUser");
+            console.log(tmpUser);
+            var myUser = $.parseJSON(tmpUser);
+            var myToken = sessionStorage.getItem("myToken");
+            this.setState({isAuthenticated: true, myUser, myToken})
+            console.log(myUser);
+            console.log(myToken);
+        } else {
+            console.log("There was no myUser object in sessionStorage");
+        }
     }
 
     logout = () => {
         this.setState({isAuthenticated: false, token: '', user: null})
+        sessionStorage.removeItem('myUser');
+        sessionStorage.removeItem('myToken');
+    };
+
+    showuser = () => {
+        this.setState({isAuthenticated: false, token: '', user: null})
+        sessionStorage.removeItem('myUser');
+        sessionStorage.removeItem('myToken');
     };
 
     onFailure = (error) => {
@@ -24,6 +65,8 @@ class App extends Component {
         response.json().then(user => {
             if (token) {
                 this.setState({isAuthenticated: true, user, token});
+                sessionStorage.setItem('myUser', JSON.stringify(user));
+                sessionStorage.setItem('myToken', token);
             }
         });
     };
@@ -41,6 +84,8 @@ class App extends Component {
             r.json().then(user => {
                 if (token) {
                     this.setState({isAuthenticated: true, user, token})
+                    sessionStorage.setItem('myUser', JSON.stringify(user));
+                    sessionStorage.setItem('myToken', token);
                 }
             });
         })
@@ -59,6 +104,8 @@ class App extends Component {
             r.json().then(user => {
                 if (token) {
                     this.setState({isAuthenticated: true, user, token})
+                    sessionStorage.setItem('myUser', JSON.stringify(user));
+                    sessionStorage.setItem('myToken', token);
                 }
             });
         })
@@ -68,10 +115,6 @@ class App extends Component {
     let content = !!this.state.isAuthenticated ?
             (
                 <div>
-                    <p>Authenticated</p>
-                    <div>
-                        {this.state.user.email}
-                    </div>
                     <div>
                         <button onClick={this.logout} className="button">
                             Log out

@@ -37,30 +37,33 @@ module.exports = function () {
 
     UserSchema.statics.upsertTwitterUser = function(token, tokenSecret, profile, cb) {
         var that = this;
-        return this.findOne({
-            'twitterProvider.id': profile.id
-        }, function(err, user) {
-            // no user was found, lets create a new one
-            if (!user) {
-                var newUser = new that({
-                    email: profile.emails[0].value,
-                    twitterProvider: {
-                        id: profile.id,
-                        token: token,
-                        tokenSecret: tokenSecret
-                    }
-                });
-
-                newUser.save(function(error, savedUser) {
-                    if (error) {
-                        console.log(error);
-                    }
-                    return cb(error, savedUser);
-                });
-            } else {
-                return cb(err, user);
+        var UserModel = dynamoose.model('User', UserSchema, {create: true, waitForActive: true});
+        UserModel.queryOne('email').eq(profile.emails[0].value).exec(
+            function(err, user) {
+                // no user was found, lets create a new one
+                if (!user) {
+                    console.log("No existing user was found with email " + profile.emails[0].value)
+                    var newUser = new UserModel({
+                        fullName: profile.displayName,
+                        email: profile.emails[0].value,
+                        twitterProvider: {
+                            id: profile.id,
+                            token: token,
+                            tokenSecret: tokenSecret
+                        }
+                    });
+    
+                    newUser.save(function(error, savedUser) {
+                        if (error) {
+                            console.log(error);
+                        }
+                        return cb(error, savedUser);
+                    });
+                } else {
+                    return cb(err, user);
+                }
             }
-        });
+        );
     };
 
     UserSchema.statics.upsertFbUser = function(accessToken, refreshToken, profile, cb) {
@@ -70,7 +73,7 @@ module.exports = function () {
             function(err, user) {
                 if (!user) {
                     // no user was found, lets create a new one
-                    console.log("No user was found")
+                    console.log("No existing user was found with email " + profile.emails[0].value)
                     var newUser = new UserModel({
                         fullName: profile.displayName,
                         email: profile.emails[0].value,
@@ -103,6 +106,7 @@ module.exports = function () {
             function(err, user) {
                 // no user was found, lets create a new one
                 if (!user) {
+                    console.log("No existing user was found with email " + profile.emails[0].value)
                     var newUser = new UserModel({
                         fullName: profile.displayName,
                         email: profile.emails[0].value,
