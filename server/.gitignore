@@ -4,3 +4,4 @@ node_modules
 .*.swp
 *.pyc
 npm-debug.log
+package-lock.json
