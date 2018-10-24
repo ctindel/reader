@@ -3,6 +3,8 @@
 const express = require('express');
 const router = express.Router();
 
+const MIN_PASSWORD_LENGTH = 8;
+
 var _ = require('lodash');
 var validator = require('validator');
 var _UserModel = require('dynamoose').model('User');
@@ -38,6 +40,12 @@ var userEnroll = function(req, res) {
         res.status(400);
         res.json({error: errStr});
         return;
+    } else if (req.body['password'].length < MIN_PASSWORD_LENGTH) {
+        errStr = "Password must be " + MIN_PASSWORD_LENGTH + " characters or longer";
+        _logger.debug(errStr);
+        res.status(400);
+        res.json({error: errStr});
+        return;
     }
     if (!validator.isEmail(req.body['email'])) {
         res.status(400);
@@ -68,6 +76,8 @@ var userEnroll = function(req, res) {
                             return;
                         }
                         _logger.error('Done saving new user ' + req.body['email']);
+                        res.status(201);
+                        res.json({'email' : req.body['email'], 'fullName' : req.body['fullName']})
                         return;
                     });
             } else {

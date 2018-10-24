@@ -35,40 +35,47 @@ frisby.create('POST missing password')
     .expectHeader('Content-Type', 'application/json; charset=utf-8')
     .expectJSON({'error' : 'Undefined Password'})
     .toss()
-//
-// frisby.create('POST password missing lowercase')
-//     .post(uri + '/user/enroll',
-//           { 'firstName' : TU1_FN,
-//             'lastName' : TU1_LN,
-//             'email' : TU1_EMAIL,
-//             'password' : 'TESTUSER123' })
-//     .expectStatus(400)
-//     .expectHeader('Content-Type', 'application/json; charset=utf-8')
-//     .expectJSONTypes({'error' : String})
-//     .toss()
-//
-// frisby.create('POST password missing uppercase')
-//     .post(uri + '/user/enroll',
-//           { 'firstName' : TU1_FN,
-//             'lastName' : TU1_LN,
-//             'email' : TU1_EMAIL,
-//             'password' : 'testuser123' })
-//     .expectStatus(400)
-//     .expectHeader('Content-Type', 'application/json; charset=utf-8')
-//     .expectJSONTypes({'error' : String})
-//     .toss()
-//
-// frisby.create('POST password missing numbers')
-//     .post(uri + '/user/enroll',
-//           { 'firstName' : TU1_FN,
-//             'lastName' : TU1_LN,
-//             'email' : TU1_EMAIL,
-//             'password' : 'testUser' })
-//     .expectStatus(400)
-//     .expectHeader('Content-Type', 'application/json; charset=utf-8')
-//     .expectJSONTypes({'error' : String})
-//     .toss()
-//
+
+frisby.create('POST password missing lowercase')
+    .post(uri + '/user/enroll',
+          { 'fullName' : TU1_FN,
+            'email' : TU1_EMAIL,
+            'password' : 'TESTUSER123' })
+    .expectStatus(400)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONTypes({'error' : String})
+    .toss()
+
+frisby.create('POST password missing uppercase')
+    .post(uri + '/user/enroll',
+          { 'fullName' : TU1_FN,
+            'email' : TU1_EMAIL,
+            'password' : 'testuser123' })
+    .expectStatus(400)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONTypes({'error' : String})
+    .toss()
+
+frisby.create('POST password missing numbers')
+    .post(uri + '/user/enroll',
+          { 'fullName' : TU1_FN,
+            'email' : TU1_EMAIL,
+            'password' : 'testUser' })
+    .expectStatus(400)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONTypes({'error' : String})
+    .toss()
+
+frisby.create('POST password less than 8 characters')
+    .post(uri + '/user/enroll',
+          { 'fullName' : TU1_FN,
+            'email' : TU1_EMAIL,
+            'password' : 'test' })
+    .expectStatus(400)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSONTypes({'error' : String})
+    .toss()
+
 frisby.create('POST invalid email address')
     .post(uri + '/user/enroll',
           { 'fullName' : TU1_FN,
