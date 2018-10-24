@@ -5,9 +5,7 @@ const router = express.Router();
 
 var _ = require('lodash');
 var validator = require('validator');
-var _mongoose = null;
-var _models = null;
-var _UserModel = null;
+var _UserModel = require('dynamoose').model('User');
 var _logger = null;
 
 module.exports.addUserAPIRouter = function(app) {
@@ -22,104 +20,62 @@ module.exports.addUserAPIRouter = function(app) {
 var userEnroll = function(req, res) {
     var errStr = undefined;
 
-    // Structure required by Stormpath API
-    var account = {};
-    account.givenName = account.surname = account.username = account.email
-        = account.password = undefined;
-
-    if (undefined == req.params['firstname']) {
-        errStr = "Undefined First Name";
+    if (undefined == req.body['fullName']) {
+        errStr = "Undefined Full Name";
         _logger.debug(errStr);
         res.status(400);
         res.json({error: errStr});
         return;
-    } else if (undefined == req.param('lastName')) {
-        errStr = "Undefined Last Name";
-        _logger.debug(errStr);
-        res.status(400);
-        res.json({error: errStr});
-        return;
-    } else if (undefined == req.param('email')) {
+    } else if (undefined == req.body['email']) {
         errStr = "Undefined Email";
         _logger.debug(errStr);
         res.status(400);
         res.json({error: errStr});
         return;
-    } else if (undefined == req.param('password')) {
+    } else if (undefined == req.body['password']) {
         errStr = "Undefined Password";
         _logger.debug(errStr);
         res.status(400);
         res.json({error: errStr});
         return;
     }
-    if (!validator.isEmail(req.param('email'))) {
+    if (!validator.isEmail(req.body['email'])) {
         res.status(400);
         res.json({error: 'Invalid email format'})
         return;
     }
-    _UserModel.find({'email' : req.param('email')}, function dupeEmail(err, results) {
-        if (err) {
-            _logger.debug("Error from dupeEmail check");
-            console.dir(err);
-            res.status(400);
-            res.json(err);
-            return;
-        }
-        if (results.length > 0) {
-            res.status(400);
-            res.json({error: 'Account with that email already exists.  Please choose another email.'});
-            return;
-        } else {
-            account.givenName = req.param('firstName');
-            account.surname = req.param('lastName');
-            account.username = req.param('email');
-            account.email = req.param('email');
-            account.password = req.param('password');
-
-            _logger.debug("Calling stormPath createAccount API");
-            req.app.get('stormpathApplication').createAccount(account, function(err, acc) {
-                if (err) {
-                    _logger.debug("Stormpath error: " + err.developerMessage);
-                    res.status(400);
-                    res.json({error: err.userMessage});
-                } else {
-                    console.dir(acc);
-                    acc.createApiKey(function(err,apiKey) {
-                        if (err) {
-                            _logger.debug("Stormpath error: " + err.developerMessage);
+    _UserModel.queryOne('email').eq(req.body['email']).exec(
+        function(err, user) {
+            if (err) {
+                _logger.debug("Error from dupeEmail check");
+                console.dir(err);
+                res.status(400);
+                res.json(err);
+                return;
+            }
+            if (!user) {
+                // no user was found, lets create a new one
+                _logger.debug("No existing user was found with email " + req.body['email']);
+                _UserModel.upsertCognitoUser(
+                    req.body['email'],
+                    req.body['fullName'],
+                    req.body['password'], function(error, savedUser) {
+                        if (error) {
+                            console.log(error);
+                            _logger.error('Error saving user ' + req.body['email']);
                             res.status(400);
-                            res.json({error: err.userMessage});
-                        } else {
-                            _logger.debug(apiKey);
-                            _logger.debug("Successfully created new SP account for "
-                                        + "firstName=" + acc.givenName
-                                        + ", lastName=" + acc.surname
-                                        + ", email=" + acc.email);
-                            var newUser = new _UserModel(
-                                {
-                                  active: true,
-                                  email: acc.email,
-                                  firstName: acc.givenName,
-                                  lastName: acc.surname,
-                                  spApiKeyId: apiKey.id,
-                                  spApiKeySecret: apiKey.secret
-                                });
-                            newUser.save(function (err, user) {
-                                if (err) {
-                                    _logger.error("Mongoose error creating new account for " + user.email);
-                                    _logger.error(err);
-                                    res.status(400);
-                                    res.json({error: err});
-                                } else {
-                                    _logger.debug("Successfully added User object for " + user.email);
-                                    res.status(201);
-                                    res.json(user);
-                                }
-                            });
+                            res.json({error: 'Error saving user ' + req.body['email']});
+                            return;
                         }
+                        _logger.error('Done saving new user ' + req.body['email']);
+                        return;
                     });
-                }
-            });
+            } else {
+                _logger.info("existing user was found with email " + req.body['email']);
+                res.status(400);
+                res.json({error: 'Account with that email already exists.  Please choose another email.'});
+                return;
+            }
         }
-    });
+    );
 };

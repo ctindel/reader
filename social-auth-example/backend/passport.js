@@ -6,6 +6,7 @@ var TwitterTokenStrategy = require('passport-twitter-token');
 var User = require('dynamoose').model('User');
 var FacebookTokenStrategy = require('passport-facebook-token');
 var GoogleTokenStrategy = require('passport-google-token').Strategy;
+var CognitoStrategy = require('passport-cognito')
 var config = require('./config');
 
 module.exports = function () {
@@ -40,4 +41,16 @@ module.exports = function () {
                 return done(err, user);
             });
         }));
+
+    passport.use(new CognitoStrategy({
+        userPoolId: config.cognito.userPoolId,
+        clientId: config.cognito.appClientId,
+        region: config.cognito.poolRegion
+      },
+      function(accessToken, idToken, refreshToken, user, cb) {
+        process.nextTick(function() {
+            cb(null, user);
+        });
+      }
+    ));
 };
