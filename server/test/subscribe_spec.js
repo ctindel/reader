@@ -4,9 +4,9 @@ var frisby = require('frisby');
 var async = require('async');
 var config = require('../config/environment');
 
-var lifeHackerFeedURL = 'http://lifehacker.com/rss';
-var dilbertBlogFeedURL = 'http://feed.dilbert.com/dilbert/blog';
-var nycEaterFeedURL = 'http://feeds.feedburner.com/eater/nyc';
+var lifeHackerFeedURL = 'https://lifehacker.com/rss';
+var dilbertBlogFeedURL = 'http://feeds.feedburner.com/DilbertDailyStrip';
+var nycEaterFeedURL = 'https://ny.eater.com/rss/index.xml';
 
 var uri = config.test.apiServerURI;
 
@@ -15,7 +15,7 @@ feedTestArray = [
         var user = TEST_USERS[0];
         frisby.create('GET empty feed list for user ' + user.email)
             .get(uri + '/feeds')
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSON({feeds : []})
@@ -27,7 +27,7 @@ feedTestArray = [
         frisby.create('PUT Add feed sub for user ' + user.email)
             .put(uri + '/feeds/subscribe',
                  {'feedURL' : dilbertBlogFeedURL})
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 1)
@@ -39,7 +39,7 @@ feedTestArray = [
         frisby.create('PUT Add duplicate feed sub for user ' + user.email)
             .put(uri + '/feeds/subscribe',
                  {'feedURL' : dilbertBlogFeedURL})
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 1)
@@ -51,7 +51,7 @@ feedTestArray = [
         frisby.create('PUT Add second feed sub for user ' + user.email)
             .put(uri + '/feeds/subscribe',
                  {'feedURL' : nycEaterFeedURL})
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 2)
@@ -63,7 +63,7 @@ feedTestArray = [
         frisby.create('PUT Add one feed sub for second user ' + user.email)
             .put(uri + '/feeds/subscribe',
                  {'feedURL' : nycEaterFeedURL})
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('user.subs', 1)

@@ -20,7 +20,7 @@ feedTestArray = [
 
         frisby.create('GET feed list for user ' + user.email)
             .get(uri + '/feeds?includeUnreadIDs=true')
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('feeds', 2)
@@ -28,7 +28,7 @@ feedTestArray = [
             .afterJSON(function searchFirstFeedPage1(res1) {
                 frisby.create('GET search first feed page 1 for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[0]._id + '/search?searchQuery=' + dilbertSearchQuery)
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSON(
@@ -43,7 +43,7 @@ feedTestArray = [
                             '&pageIndex=1&countPerPage=' + DEFAULT_COUNT_PER_PAGE;
                         frisby.create('GET search first feed page 2 for user ' + user.email)
                             .get(uri + '/feeds/' + res1.feeds[0]._id + '/search?' + params)
-                            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                            .addHeader('Authorization', 'Bearer ' + user.token)
                             .expectStatus(200)
                             .expectHeader('Content-Type', 'application/json; charset=utf-8')
                             .expectJSON(
@@ -59,7 +59,7 @@ feedTestArray = [
 
                 frisby.create('GET search second feed page 1 for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[1]._id + '/search?searchQuery=' + eaterSearchQuery)
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSON(
@@ -74,7 +74,7 @@ feedTestArray = [
                             '&pageIndex=1&countPerPage=' + DEFAULT_COUNT_PER_PAGE;
                         frisby.create('GET search second feed page 2 for user ' + user.email)
                             .get(uri + '/feeds/' + res1.feeds[1]._id + '/search?' + params)
-                            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                            .addHeader('Authorization', 'Bearer ' + user.token)
                             .expectStatus(200)
                             .expectHeader('Content-Type', 'application/json; charset=utf-8')
                             .expectJSON(
@@ -96,7 +96,7 @@ feedTestArray = [
 
             frisby.create('GET feed list for user ' + user.email)
                 .get(uri + '/feeds?includeUnreadIDs=true')
-                .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                .addHeader('Authorization', 'Bearer ' + user.token)
                 .expectStatus(200)
                 .expectHeader('Content-Type', 'application/json; charset=utf-8')
                 .expectJSONLength('feeds', 1)
@@ -104,7 +104,7 @@ feedTestArray = [
                 .afterJSON(function searchFirstFeedPage1(res1) {
                     frisby.create('GET search first feed page 1 for user ' + user.email)
                         .get(uri + '/feeds/' + res1.feeds[0]._id + '/search?searchQuery=' + eaterSearchQuery)
-                        .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                        .addHeader('Authorization', 'Bearer ' + user.token)
                         .expectStatus(200)
                         .expectHeader('Content-Type', 'application/json; charset=utf-8')
                         .expectJSON(

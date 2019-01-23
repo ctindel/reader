@@ -10,13 +10,31 @@ var validator = require('validator');
 var _UserModel = require('dynamoose').model('User');
 var _logger = null;
 
+function checkAuthentication(req,res,next){
+    if(req.isAuthenticated()){
+        //req.isAuthenticated() will return true if user is logged in
+        console.log("SUCCESS: req has authentication")
+        next();
+    } else{
+        console.log("ERROR: req has no authentication")
+        res.redirect("/login");
+    }
+}
+
 module.exports.addUserAPIRouter = function(app) {
     var router = express.Router();
 
     _logger = app.get("readerLogger");
-    router.route('/user/enroll').post(userEnroll);
+    router.get('/user/describe', checkAuthentication, userDescribe);
+    router.post('/user/enroll', userEnroll);
 
     return router;
+}
+
+var userDescribe = function(req, res) {
+    var errStr = undefined;
+
+    console.log("userDescribe: success for user")
 }
 
 var userEnroll = function(req, res) {

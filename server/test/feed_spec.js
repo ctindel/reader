@@ -14,7 +14,7 @@ feedTestArray = [
         var user = TEST_USERS[0];
         frisby.create('GET feed list for user ' + user.email)
             .get(uri + '/feeds?includeUnreadIDs=true')
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('feeds', 2)
@@ -22,7 +22,7 @@ feedTestArray = [
             .afterJSON(function getSingleFeed(res1) {
                 frisby.create('GET first feed unread entries for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=true')
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('feed.unreadEntries', res1.feeds[0].unreadCount)
@@ -30,7 +30,7 @@ feedTestArray = [
 
                 frisby.create('GET first feed all entries for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=false')
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('feed.unreadEntries', res1.feeds[0].unreadCount)
@@ -38,7 +38,7 @@ feedTestArray = [
 
                 frisby.create('GET second feed unread entries for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[1]._id + '/entries?unreadOnly=true')
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('feed.unreadEntries', res1.feeds[1].unreadCount)
@@ -46,7 +46,7 @@ feedTestArray = [
 
                 frisby.create('GET second feed all entries for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[1]._id + '/entries?unreadOnly=false')
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('feed.unreadEntries', res1.feeds[1].unreadCount)
@@ -59,7 +59,7 @@ feedTestArray = [
         var user = TEST_USERS[1];
         frisby.create('GET feed list for user ' + user.email)
             .get(uri + '/feeds')
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('feeds', 1)
@@ -67,7 +67,7 @@ feedTestArray = [
             .afterJSON(function getSingleFeed(res1) {
                 frisby.create('GET first feed unread entries for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=true')
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('feed.unreadEntries', res1.feeds[0].unreadCount)
@@ -75,7 +75,7 @@ feedTestArray = [
 
                 frisby.create('GET first feed all entries for user ' + user.email)
                     .get(uri + '/feeds/' + res1.feeds[0]._id + '/entries?unreadOnly=false')
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('feed.unreadEntries', res1.feeds[0].unreadCount)

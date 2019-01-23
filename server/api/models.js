@@ -5,19 +5,94 @@ module.exports = function(mongoose) {
     var userSchema = new mongoose.Schema({
         active: Boolean,
         email: { type: String, trim: true, lowercase: true },
-        firstName: { type: String, trim: true },
-        lastName: { type: String, trim: true },
-        spApiKeyId: { type: String, trim: true },
-        spApiKeySecret: { type: String, trim: true },
+        name: { type: String, trim: true },
         subs: { type: [mongoose.Schema.Types.ObjectId], default: [] },
         created: { type: Date, default: Date.now },
         lastLogin: { type: Date, default: Date.now },
+        localProvider: {
+            password: {
+                type: String,
+                trim: true
+            }
+        },
+        googleProvider: {
+            type: {
+                id: String,
+                token: String
+            },
+            select: false
+        }
     },
     { collection: 'user' }
     );
 
     userSchema.index({email : 1}, {unique:true});
-    userSchema.index({spApiKeyId : 1}, {unique:true});
+
+    userSchema.statics.upsertGoogleUser = function(accessToken, refreshToken, profile, cb) {
+        var that = this;
+        return this.findOne({
+            'googleProvider.id': profile.id
+        }, function(err, user) {
+            // no user was found, lets create a new one
+            if (!user) {
+                var newUser = new that({
+                    fullName: profile.displayName,
+                    email: profile.emails[0].value,
+                    googleProvider: {
+                        id: profile.id,
+                        token: accessToken
+                    }
+                });
+
+                newUser.save(function(error, savedUser) {
+                    if (error) {
+                        console.error(error);
+                    }
+                    return cb(error, savedUser);
+                });
+            } else {
+                user.googleProvider.token = accessToken;
+                user.save(function(error, savedUser) {
+                    if (error) {
+                        console.error(error);
+                    }
+                    return cb(error, savedUser);
+                });
+            }
+        });
+    };
+
+    userSchema.statics.upsertLocalUser = function(email, password, cb) {
+        var that = this;
+        return this.findOne({
+            'email': email
+        }, function(err, user) {
+            // no user was found, lets create a new one
+            if (!user) {
+                var newUser = new that({
+                    email: email,
+                    localProvider: {
+                        password: password
+                    }
+                });
+
+                newUser.save(function(error, savedUser) {
+                    if (error) {
+                        console.error(error);
+                    }
+                    return cb(error, savedUser);
+                });
+            } else {
+                user.localProvider.password = password;
+                user.save(function(error, savedUser) {
+                    if (error) {
+                        console.error(error);
+                    }
+                    return cb(error, savedUser);
+                });
+            }
+        });
+    };
 
     var feedSchema = new mongoose.Schema({
         feedURL: { type: String, trim:true },

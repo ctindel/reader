@@ -14,8 +14,8 @@ dynamoose.local("http://localhost:8000") // This will set the server to "http://
 
 //var Schema = new dynamoose.Schema(
 //    { 
-//        id: {type: Number, hashKey: true}, 
-//        name: {type: String, rangeKey: true, index: true } 
+//        number_number: {type: String, hashKey: true}, 
+//        data: {type: String}
 //    }
 //);
 //

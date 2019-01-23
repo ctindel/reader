@@ -1,5 +1,6 @@
 'use strict';
 
+var express = require('express');
 var _ = require('lodash');
 var async = require('async');
 var util = require('util');
@@ -14,6 +15,21 @@ var _logger = null;
 
 module.exports = FeedController;
 
+function checkAuthentication(req,res,next){
+    if(req.isAuthenticated()){
+        //req.isAuthenticated() will return true if user is logged in
+        //console.log("SUCCESS: req has authentication")
+        next();
+    } else{
+        //console.log("ERROR: req has no authentication")
+        errStr = "invalid authentication";
+        _logger.debug(errStr);
+        res.status(401);
+        res.json({error: errStr});
+        return;
+    }
+}
+
 function FeedController(app, stormpath, mongoose) {
     _mongoose = mongoose;
     _models = app.get('readerModels');
@@ -22,6 +38,20 @@ function FeedController(app, stormpath, mongoose) {
     _FeedEntryModel = _models.FeedEntryModel;
     _UserFeedEntryModel = _models.UserFeedEntryModel;
     _logger = app.get('readerLogger');
+}
+
+FeedController.prototype.addFeedAPIRouter = function(app) {
+    var router = express.Router();
+
+    router.get('/feeds', checkAuthentication, this.getFeeds);
+    router.put('/feeds/subscribe', checkAuthentication, this.subscribe);
+    router.get('/feeds/:feedID/search', checkAuthentication, this.getFeedEntrySearch);
+    router.delete('/feeds/:feedID', checkAuthentication, this.unsubscribe);
+    router.get('/feeds/:feedID/entries', checkAuthentication, this.getFeedEntries);
+    router.put('/feeds/:feedID', checkAuthentication, this.updateFeedReadStatus);
+    router.put('/feeds/:feedID/entries/:entryID', checkAuthentication, this.updateFeedEntryReadStatus);
+
+    return router;
 }
 
 FeedController.prototype.getFeeds = function(req, res) {
@@ -34,15 +64,12 @@ FeedController.prototype.getFeeds = function(req, res) {
     var resultJSON = {feeds : []};
     var state = { feeds : [] };
 
-    if(req.authenticationError){
-        console.log("Authentication Error: ");
-        console.dir(req.authenticationError);
-    }
-
-    if (undefined != req.param('includeUnreadIDs')) {
-        if ('true' == req.param('includeUnreadIDs')) {
+    if (undefined != req.query['includeUnreadIDs']) {
+        if ('true' == req.query['includeUnreadIDs']) {
+            console.log("includeUnreadIDs is true");
             includeUnreadIDs = true;
         } else {
+            console.log("includeUnreadIDs is " + req.query['includeUnreadIDs']);
             errStr = "includeUnreadIDs parameter must be true if set";
             _logger.debug(errStr);
             res.status(400);
@@ -63,7 +90,7 @@ FeedController.prototype.getFeeds = function(req, res) {
                 }
 
                 if (users.length == 0) {
-                    errStr = 'Stormpath returned an email ' + req.user.email + ' for which we dont have a matching user object';
+                    errStr = 'Did not find a user object for email ' + req.user.email;
                     resultStatus = 400;
                     resultJSON = { error : errStr };
                     _logger.debug(errStr);
@@ -206,7 +233,7 @@ FeedController.prototype.subscribe = function(req, res) {
     var resultStatus = null;
     var resultJSON = {user : null};
 
-    var feedURL = req.param('feedURL');
+    var feedURL = req.body['feedURL'];
 
     if (undefined == feedURL) {
         errStr = "Undefined Feed URL";

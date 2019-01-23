@@ -8,3 +8,4 @@ if [ $? -ne 0 ]; then
 fi
 # jasmine-node create_accounts_error_spec.js
 jasmine-node create_accounts_spec.js
+jasmine-node subscribe_spec.js

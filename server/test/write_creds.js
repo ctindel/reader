@@ -1,24 +1,25 @@
-TU_EMAIL_REGEX = new RegExp('^testuser*');
-SP_APP_NAME = 'Reader Test';
+TU_EMAIL_REGEX = new RegExp('^testuser.*$');
+//TU_EMAIL_REGEX = new RegExp('^testuser1.*$');
 TEST_CREDS_TMP_FILE = '/tmp/readerTestCreds.js';
 
 var async = require('async');
 var config = require('../config/environment');
 var mongodb = require('mongodb');
-var http = require('http');
+const axios = require('axios');
 assert = require('assert');
 
 var uri = config.test.apiServerURI;
-var mongoClient = mongodb.MongoClient
+const MongoClient = require('mongodb').MongoClient;
 var reader_db = null;
 var users_array = null;
 var qs = require('qs');
 
 writeCredsArray = [
     function connectDB(callback) {
-        mongoClient.connect(config.mongo.uri, function(err, db) {
+        MongoClient.connect(config.mongo.uri, { useNewUrlParser: true }, function(err, client) {
             assert.equal(null, err);
-            reader_db = db; 
+            reader_db_client = client;
+            reader_db = reader_db_client.db(config.mongo.db);
             callback(null);
         });
     },
@@ -33,46 +34,29 @@ writeCredsArray = [
     function getUserTokens(callback) {
         console.log("getUserTokens");
         var numTokens = 0;
-        var postData = qs.stringify({ 'grant_type' : 'client_credentials' });
 
         users_array.forEach(function genToken(user, index, array) {
             var options = {
-                hostname: config.test.apiServer,
-                auth: user.spApiKeyId + ':' + user.spApiKeySecret,
-                port: config.test.apiServerPort,
-                path: '/api/v1.0/oauth/token',
+                baseURL: 'http://' + config.test.apiServer + ':' + config.test.apiServerPort + '/api/v1.0',
+                url: '/auth/local',
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Content-Length': Buffer.byteLength(postData)
-                }
+                    //'Content-Length': Buffer.byteLength(postData)
+                },
+                //data: {'email' : user.email, 'password' : user.localProvider.password },
+                data: qs.stringify({'email' : user.email, 'password' : user.localProvider.password }),
+                responseType: 'json',
             };
-            
-            var req = http.request(options, function(res) {
-                var responseString = '';
-
-                res.setEncoding('utf8');
-                if (res.statusCode != 200) {
-                    throw new Error("Error with oauth token, status code " + res.statusCode);
-                }
-
-                res.on('data', function (chunk) {
-                    responseString += chunk;
-                });
-
-                res.on('end', function() {
-                    var responseObject = JSON.parse(responseString);
-                    user.token = responseObject;
+            axios.request(options)
+                .then(function(response) {
+                    user.token = response.headers['x-auth-token'];
                     numTokens++;
                     if (numTokens == users_array.length) {
                         callback(null);
                     }
                 });
-
-            });
-            req.write(postData);
-            req.end();
-        }); 
+        });
     },
     function writeCreds(callback) {
         console.log("writeCreds");
@@ -83,7 +67,7 @@ writeCredsArray = [
         callback(0);
     },
     function closeDB(callback) {
-        reader_db.close();
+        reader_db_client.close();
     },
     function callback(err, results) {
         console.log("Write creds callback");

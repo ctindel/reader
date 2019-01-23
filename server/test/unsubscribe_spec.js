@@ -15,7 +15,7 @@ unsubTestArray = [
         var user = TEST_USERS[0];
         frisby.create('DELETE unsubscribe invalid feed for user ' + user.email)
             .delete(uri + '/feeds/1234')
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(404)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSON({'error' : 'User not subscribed to feed 1234'})
@@ -26,7 +26,7 @@ unsubTestArray = [
         var user = TEST_USERS[0];
         frisby.create('DELETE unsubscribe second feed part 1 for user ' + user.email)
             .get(uri + '/feeds')
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('feeds', 2)
@@ -34,14 +34,14 @@ unsubTestArray = [
             .afterJSON(function unsub(res1) {
                 frisby.create('DELETE unsubscribe second feed part 2 for user ' + user.email)
                     .delete(uri + '/feeds/' + res1.feeds[1]._id)
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('user.subs', 1)
                     .afterJSON(function getFeedsAgain(res2) {
                         frisby.create('DELETE unsubscribe second feed part 3 for user ' + user.email)
                             .get(uri + '/feeds')
-                            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                            .addHeader('Authorization', 'Bearer ' + user.token)
                             .expectStatus(200)
                             .expectHeader('Content-Type', 'application/json; charset=utf-8')
                             .expectJSONLength('feeds', 1)
@@ -57,7 +57,7 @@ unsubTestArray = [
         var user = TEST_USERS[1];
         frisby.create('DELETE unsubscribe last feed part 1 for user ' + user.email)
             .get(uri + '/feeds')
-            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+            .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
             .expectJSONLength('feeds', 1)
@@ -65,14 +65,14 @@ unsubTestArray = [
             .afterJSON(function unsub(res1) {
                 frisby.create('DELETE unsubscribe last feed part 2 for user ' + user.email)
                     .delete(uri + '/feeds/' + res1.feeds[0]._id)
-                    .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                    .addHeader('Authorization', 'Bearer ' + user.token)
                     .expectStatus(200)
                     .expectHeader('Content-Type', 'application/json; charset=utf-8')
                     .expectJSONLength('user.subs', 0)
                     .afterJSON(function getFeedsAgain(res2) {
                         frisby.create('DELETE unsubscribe second feed part 3 for user ' + user.email)
                             .get(uri + '/feeds')
-                            .addHeader('Authorization', 'Bearer ' + user.token.access_token)
+                            .addHeader('Authorization', 'Bearer ' + user.token)
                             .expectStatus(200)
                             .expectHeader('Content-Type', 'application/json; charset=utf-8')
                             .expectJSONLength('feeds', 0)

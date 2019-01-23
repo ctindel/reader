@@ -1,0 +1,4 @@
+feedparser==5.2.1
+pymongo==3.7.2
+pyyaml==3.13
+elasticsearch==6.3.1

@@ -8,28 +8,28 @@ import time, datetime
 import yaml
 import copy
 from singletonmixin import Singleton
-from elasticsearch import Elasticsearch
+#from elasticsearch import Elasticsearch
 
 class Config(Singleton):
     def __init__(self):
-        stream = file('config/config.yaml', 'r')
+        stream = open(file='config/config.yaml', mode='r')
         self.config = yaml.load(stream)
     def getDBURL(self):
         return self.config['db']['url']
     def getDBName(self):
         return self.config['db']['dbName']
-    def getElasticSearchHost(self):
-        return self.config['es']['host']
-    def getElasticSearchIndexName(self):
-        return self.config['es']['indexName']
-    def getElasticSearchFeedEntryDocType(self):
-        return self.config['es']['feedEntryDocType']
-
-es = Elasticsearch(
-    [Config.getInstance().getElasticSearchHost()],
-    use_ssl=False,
-    verify_certs=False,
-)
+#    def getElasticSearchHost(self):
+#        return self.config['es']['host']
+#    def getElasticSearchIndexName(self):
+#        return self.config['es']['indexName']
+#    def getElasticSearchFeedEntryDocType(self):
+#        return self.config['es']['feedEntryDocType']
+#
+#es = Elasticsearch(
+#    [Config.getInstance().getElasticSearchHost()],
+#    use_ssl=False,
+#    verify_certs=False,
+#)
 
 class MDBConnection(Singleton):
 
@@ -63,7 +63,7 @@ def getFeeds(filterMap):
     cursor = feed_table.find(filterMap)
 
     for doc in cursor:
-        print `doc`     
+        #print `doc`     
         feed = Feed()
         feed.loadFromDoc(doc)
         feeds.append(feed)
@@ -138,11 +138,11 @@ class FeedEntry:
 
     # _id is a reserved key in elastic search so we need
     #  to store this value as mongoID instead
-    def getAsElasticSearchDict(self):
-        esDict = copy.deepcopy(self.entry_map)
-        esDict['mongoID'] = esDict['_id']
-        del esDict['_id']
-        return esDict
+#    def getAsElasticSearchDict(self):
+#        esDict = copy.deepcopy(self.entry_map)
+#        esDict['mongoID'] = esDict['_id']
+#        del esDict['_id']
+#        return esDict
 
     def loadFromFeed(self, entry):
         if 'title' in entry:
@@ -220,12 +220,12 @@ class FeedEntry:
                                                    update = self.entry_map, 
                                                    upsert = True, new = True)
         self.entry_map = new_doc
-        esBody = json.loads(json.dumps(self.getAsElasticSearchDict(), cls=ESEncoder))
-        es.index(
-            index = Config.getInstance().getElasticSearchIndexName(),
-            doc_type=Config.getInstance().getElasticSearchFeedEntryDocType(),
-            id=self.getID(), 
-            body = esBody)
+#        esBody = json.loads(json.dumps(self.getAsElasticSearchDict(), cls=ESEncoder))
+#        es.index(
+#            index = Config.getInstance().getElasticSearchIndexName(),
+#            doc_type=Config.getInstance().getElasticSearchFeedEntryDocType(),
+#            id=self.getID(), 
+#            body = esBody)
 
 class Feed:
 
@@ -251,11 +251,11 @@ class Feed:
 
     # _id is a reserved key in elastic search so we need
     #  to store this value as mongoID instead
-    def getAsElasticSearchDict(self):
-        esDict = copy.deepcopy(self.feed_map)
-        esDict['mongoID'] = esDict['_id']
-        del esDict['_id']
-        return esDict
+#    def getAsElasticSearchDict(self):
+#        esDict = copy.deepcopy(self.feed_map)
+#        esDict['mongoID'] = esDict['_id']
+#        del esDict['_id']
+#        return esDict
 
     def setUnreadCount(self, count):
         self.unread_count = count
@@ -284,6 +284,14 @@ class Feed:
     def loadFromFeedparser(self, d):
         self.entries = []
         self.feed_map['state'] = 'active'
+        if d.bozo:
+            self.feed_map['bozoBitSet'] = True
+            self.feed_map['bozoException'] = d.bozo_exception
+            print(d.bozo_exception)
+            self.feed_map['enabled'] = False
+            self.feed_map['state'] = 'bozo'
+            self.feed_map['error'] = 'Feed is unparseable, we will not be loading or parsing this feed'
+            return
         if 301 == d.status:
             self.feed_map['permanentRedirectURL'] = d.href
             self.feed_map['state'] = 'inactive'
@@ -298,8 +306,6 @@ class Feed:
             self.feed_map['enabled'] = False
             self.feed_map['state'] = 'inactive'
             self.feed_map['error'] = 'Requires Authentication'
-        if d.bozo:
-            self.feed_map['bozoBitSet'] = True
 
         if d.entries:
             for i in range(len(d.entries)):
@@ -342,24 +348,28 @@ class Feed:
         self.loadFromFeedparser(d)
 
     def isBozoBitSet(self):
-        return self.feed_map.has_key('bozoBitSet') and \
-               self.feed_map['bozoBitSet'] is not None
+        return 'bozoBitSet' in self.feed_map and \
+               self.feed_map['bozoBitSet'] is True \
 
     def isPermanentlyRedirected(self):
-        return self.feed_map.has_key('permanentRedirectURL') and \
+        return 'permanentRedirectURL' in self.feed_map and \
                self.feed_map['permanentRedirectURL'] is not None
 
-    def feedURL(self):
-        if feed_map.has_key('permanentRedirectURL'):
+    def getPermanentRedirectURL(self):
+        assert self.feed_map['permanentRedirectURL'] is not None
+        return self.feed_map['permanentRedirectURL']
+
+    def getFeedURL(self):
+        if 'permanentRedirectURL' in self.feed_map:
             assert self.feed_map['permanentRedirectURL'] is not None
         return self.feed_map['feedURL']
 
     def isPermanentlyRemoved(self):
-        return self.feed_map.has_key('permanentRedirectURL') and \
+        return 'permanentlyRemoved' in self.feed_map and \
                self.feed_map['permanentlyRemoved']
 
     def isAuthenticationRequired(self):
-        return self.feed_map.has_key('requiresAuthentication') and \
+        return 'requiresAuthentication' in self.feed_map and \
                self.feed_map['requiresAuthentication']
 
     def isActive(self):
@@ -446,44 +456,48 @@ class Feed:
             e.save()
 
 def printFeed(feed):
-    if feed.isPermanentlyRedirected():
-        print 'Permanent redirect to %s' % (feed.getPermanentRedirectURL())
-    if feed.isPermanentlyRemoved():
-        print 'Feed has been permanently removed'
-    if feed.isAuthenticationRequired():
-        print 'Feed requires authentication, not yet supported'
     if feed.isBozoBitSet():
-        print 'BOZO BIT SET'
+        print('Bozo bit set for feed ' + feed.feed_map['feedURL'] + ', we will not be trying to parse this feed')
+        print(feed.feed_map['bozoException'])
+        return
+    if feed.isPermanentlyRedirected():
+        print('Permanent redirect to %s' % (feed.getPermanentRedirectURL()))
+    if feed.isPermanentlyRemoved():
+        print('Feed has been permanently removed')
+    if feed.isAuthenticationRequired():
+        print('Feed requires authentication, not y)et supported')
 
-    print 'etag: %s' % feed.getEtag()
-    print 'modified: %s ' % (feed.getModifiedDate())
-    print 'Title: ' + feed.getTitle().encode('ascii', 'ignore')
-    print 'Link: ' + feed.getLink()
-    print 'Description: ' + feed.getDescription().encode('ascii', 'ignore')
+    print('etag: %s' % feed.getEtag())
+    print('modified: %s ' % (feed.getModifiedDate()))
+    print('Title: %s' % feed.getTitle().encode('ascii', 'ignore'))
+    print('Link: ' + feed.getLink())
+    print('Description: %s' % feed.getDescription().encode('ascii', 'ignore'))
     if feed.hasImageURL():
-        print 'Image URL: ' + feed.getImageURL()
+        print('Image URL: ' + feed.getImageURL())
 
-    print 'Published: %s' % (feed.getPublishedDate())
+    print('Published: %s' % (feed.getPublishedDate()))
 
     entries = feed.getEntries()
-    print 'Num Entries %d' % len(entries)
+    print('Num Entries %d' % len(entries))
 
-    print '\n'
+    print('\n')
 
     for i in range(len(entries)):
-        print 'Entry[%d].title: %s' % (i, entries[i].getTitle().encode('ascii', 'ignore'))
-        print 'Entry[%d].link: %s' % (i, entries[i].getLink())
-        print 'Entry[%d].description: %s' % (i, entries[i].getDescription().encode('ascii', 'ignore'))
-        print 'Entry[%d].published: %s' % (i, entries[i].getPublishedDate())
-        print 'Entry[%d].id: %s' % (i, entries[i].getEntryID())
-        print 'Entry[%d].summary: %s' % (i, entries[i].getSummary().encode('ascii', 'ignore'))
-        print 'Entry[%d].content: %s' % (i, entries[i].getContent())
+        print('Entry[%d].title: %s' % (i, entries[i].getTitle().encode('ascii', 'ignore')))
+        print('Entry[%d].link: %s' % (i, entries[i].getLink()))
+        print('Entry[%d].description: %s' % (i, entries[i].getDescription().encode('ascii', 'ignore')))
+        print('Entry[%d].published: %s' % (i, entries[i].getPublishedDate()))
+        print('Entry[%d].id: %s' % (i, entries[i].getEntryID()))
+        print('Entry[%d].summary: %s' % (i, entries[i].getSummary().encode('ascii', 'ignore')))
+        print('Entry[%d].content: %s' % (i, entries[i].getContent()))
 
 
-#feed = Feed()
-#feed.loadFromURL('http://feeds.feedburner.com/ImbibeUnfiltered')
-#feed.loadFromURL('http://feeds.harvardbusiness.org/harvardbusiness/')
-#feed.loadFromURL('http://feeds.feedburner.com/eater/nyc')
+feed = Feed()
+#feed.loadFromURL('http://imbibemagazine.com/category/article/cocktails-spirits-article/feed')
+# this hbr feed is a good example of a feed that fails
+#feed.loadFromURL('https://feeds.hbr.org/harvardbusiness')
+#feed.loadFromURL('https://ny.eater.com/rss/index.xml')
 #feed.loadFromURL('http://feeds.feedburner.com/DilbertDailyStrip')
-#printFeed(feed)
-#feed.save()
+feed.loadFromURL('https://lifehacker.com/rss')
+printFeed(feed)
+feed.save()

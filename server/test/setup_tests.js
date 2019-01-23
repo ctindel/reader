@@ -1,30 +1,20 @@
-TU_EMAIL_REGEX = 'testuser*';
-SP_APP_NAME = 'Reader Test';
-
-var stormpath = require('stormpath');
 var async = require('async');
 var client = null;
 var app = null;
 var testAccounts = null;
 var config = require('../config/environment');
-var mongodb = require('mongodb');
 var assert = require('assert');
 
-var apiKey = new stormpath.ApiKey(
-    config.sp.STORMPATH_API_KEY_ID,
-    config.sp.STORMPATH_API_KEY_SECRET
-);
-
-client = new stormpath.Client({apiKey: apiKey});
-
-var mongoClient = mongodb.MongoClient
+const MongoClient = require('mongodb').MongoClient;
+var reader_db_client = null;
 var reader_db = null;
 
 setupTasksArray = [
     function connectDB(callback) {
-        mongoClient.connect(config.mongo.uri, function(err, db) {
+        MongoClient.connect(config.mongo.uri, { useNewUrlParser: true }, function(err, client) {
             assert.equal(null, err);
-            reader_db = db; 
+            reader_db_client = client;
+            reader_db = reader_db_client.db(config.mongo.db);
             console.log("Connected correctly to server");
             callback(0);
         });
@@ -53,44 +43,8 @@ setupTasksArray = [
             callback(0);
         }
     },
-    function getApplication(callback) {
-        console.log("getApplication");
-        client.getApplications({name: SP_APP_NAME}, function(err, applications) {
-            console.log(applications);
-            if (err) {
-                log("Error in getApplications");
-                throw err;
-            }
-
-            app = applications.items[0];
-            callback(0);
-        });
-    },
-    function deleteTestAccounts(callback) {
-        console.log("deleteTestAccounts");
-        app.getAccounts({email: TU_EMAIL_REGEX}, function(err, accounts) {
-            if (err) {
-                log("Error in getAccounts");
-                throw err;
-            }
-            
-            console.log("Accounts: %j", accounts);
-            accounts.items.forEach(function deleteAccount(account) {
-                console.log("account: " + account);
-                console.log("Deleting Account for %s %s", account.givenName, account.surname);
-                account.delete(function deleteError(err) {
-                    if (err) {
-                        console.log("Error deleting account");
-                        throw err;
-                    }
-                });
-            });
-
-            callback(0);
-        });
-    },
     function closeDB(callback) {
-        reader_db.close();
+        reader_db_client.close();
     },
     function callback(err, results) {
         console.log("Setup callback");
