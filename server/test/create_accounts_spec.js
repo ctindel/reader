@@ -22,12 +22,12 @@ TEST_USERS.forEach(function createUser(user, index, array) {
         .toss()
 });
 
-// frisby.create('POST enroll duplicate user ')
-//     .post(uri + '/user/enroll',
-//           { 'name' : TEST_USERS[0].name,
-//             'email' : TEST_USERS[0].email,
-//             'password' : TEST_USERS[0].pwd })
-//     .expectStatus(400)
-//     .expectHeader('Content-Type', 'application/json; charset=utf-8')
-//     .expectJSON({'error' : 'Account with that email already exists.  Please choose another email.'})
-//     .toss()
+frisby.create('POST enroll duplicate user ')
+    .post(uri + '/user/enroll',
+          { 'name' : TEST_USERS[0].name,
+            'email' : TEST_USERS[0].email,
+            'password' : TEST_USERS[0].pwd })
+    .expectStatus(400)
+    .expectHeader('Content-Type', 'application/json; charset=utf-8')
+    .expectJSON({'error' : `Account with email ${TEST_USERS[0].email} already exists.  Please choose another email.`})
+    .toss()

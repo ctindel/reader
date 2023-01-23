@@ -5,7 +5,7 @@ var async = require('async');
 var config = require('../config/environment');
 
 var lifeHackerFeedURL = 'https://lifehacker.com/rss';
-var dilbertBlogFeedURL = 'http://feeds.feedburner.com/DilbertDailyStrip';
+var ynabBlogFeedURL = 'https://www.youneedabudget.com/feed/';
 var nycEaterFeedURL = 'https://ny.eater.com/rss/index.xml';
 
 var uri = config.test.apiServerURI;
@@ -26,7 +26,7 @@ feedTestArray = [
         var user = TEST_USERS[0];
         frisby.create('PUT Add feed sub for user ' + user.email)
             .put(uri + '/feeds/subscribe',
-                 {'feedURL' : dilbertBlogFeedURL})
+                 {'feedURL' : ynabBlogFeedURL})
             .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')
@@ -38,7 +38,7 @@ feedTestArray = [
         var user = TEST_USERS[0];
         frisby.create('PUT Add duplicate feed sub for user ' + user.email)
             .put(uri + '/feeds/subscribe',
-                 {'feedURL' : dilbertBlogFeedURL})
+                 {'feedURL' : ynabBlogFeedURL})
             .addHeader('Authorization', 'Bearer ' + user.token)
             .expectStatus(200)
             .expectHeader('Content-Type', 'application/json; charset=utf-8')

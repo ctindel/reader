@@ -23,10 +23,10 @@ module.exports = function(mongoose) {
             select: false
         }
     },
-    { collection: 'user' }
+    { collection: 'user', strict: true }
     );
 
-    userSchema.index({email : 1}, {unique:true});
+    userSchema.index({email : 1}, {unique:true, strict: true});
 
     userSchema.statics.upsertGoogleUser = function(accessToken, refreshToken, profile, cb) {
         var that = this;
@@ -102,7 +102,7 @@ module.exports = function(mongoose) {
         createdDate: { type: Date, default: Date.now },
         modifiedDate: { type: Date, default: Date.now },
     },
-    { collection: 'feed' }
+    { collection: 'feed', strict: true }
     );
 
     feedSchema.index({feedURL : 1}, {unique:true});
@@ -119,7 +119,7 @@ module.exports = function(mongoose) {
         state: { type: String, trim:true, lowercase:true, default: 'new' },
         created: { type: Date, default: Date.now },
     },
-    { collection: 'feedEntry' }
+    { collection: 'feedEntry' , strict: true}
     );
 
     feedEntrySchema.index({entryID : 1});
@@ -131,7 +131,7 @@ module.exports = function(mongoose) {
         feedID: { type: mongoose.Schema.Types.ObjectId },
         read : { type: Boolean, default: false },
     },
-    { collection: 'userFeedEntry' }
+    { collection: 'userFeedEntry' , strict: true}
     );
 
     userFeedEntrySchema.index({ userID : 1, feedID : 1,

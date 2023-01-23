@@ -5,11 +5,12 @@
 module.exports = {
   // MongoDB connection options
     mongo: {
-        uri: 'mongodb://localhost',
+        uri: 'mongodb://127.0.0.1',
         db: 'reader-dev',
         options: {
             useNewUrlParser: true,
-            keepAlive: 300000,
+            keepAlive: true,
+            keepAliveInitialDelay: 300000,
         }
     },
 

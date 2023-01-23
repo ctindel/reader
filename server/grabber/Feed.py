@@ -13,7 +13,7 @@ from singletonmixin import Singleton
 class Config(Singleton):
     def __init__(self):
         stream = open(file='config/config.yaml', mode='r')
-        self.config = yaml.load(stream)
+        self.config = yaml.safe_load(stream)
     def getDBURL(self):
         return self.config['db']['url']
     def getDBName(self):
@@ -215,10 +215,11 @@ class FeedEntry:
         feedEntry_table = db.feedEntry
 
         self.entry_map['feedID'] = self.feed.getID()
-        new_doc = feedEntry_table.find_and_modify(query = {'link' : 
-                                                   self.entry_map['link']}, 
-                                                   update = self.entry_map, 
-                                                   upsert = True, new = True)
+        new_doc = feedEntry_table.find_one_and_replace(
+            {'link' : self.entry_map['link']}, 
+            self.entry_map, 
+            upsert = True,
+            return_document=pymongo.collection.ReturnDocument.AFTER)
         self.entry_map = new_doc
 #        esBody = json.loads(json.dumps(self.getAsElasticSearchDict(), cls=ESEncoder))
 #        es.index(
@@ -448,10 +449,14 @@ class Feed:
         db = MDBConnection.getInstance().getDB()
         feed_table = db.feed
 
-        new_doc = feed_table.find_and_modify(query = {'feedURL' : 
-                                             self.feed_map['feedURL']}, 
-                                             update = self.feed_map, upsert = True, new = True)
+        print(self.feed_map);
+        new_doc = feed_table.find_one_and_replace(
+            {'feedURL' : self.feed_map['feedURL']}, 
+            self.feed_map, 
+            upsert=True,
+            return_document=pymongo.collection.ReturnDocument.AFTER)
         self.feed_map = new_doc
+        print(self.feed_map)
         for e in self.getEntries():
             e.save()
 
@@ -492,12 +497,13 @@ def printFeed(feed):
         print('Entry[%d].content: %s' % (i, entries[i].getContent()))
 
 
-feed = Feed()
-#feed.loadFromURL('http://imbibemagazine.com/category/article/cocktails-spirits-article/feed')
-# this hbr feed is a good example of a feed that fails
-#feed.loadFromURL('https://feeds.hbr.org/harvardbusiness')
-#feed.loadFromURL('https://ny.eater.com/rss/index.xml')
-#feed.loadFromURL('http://feeds.feedburner.com/DilbertDailyStrip')
-feed.loadFromURL('https://lifehacker.com/rss')
-printFeed(feed)
-feed.save()
+if __name__ == '__main__':
+    feed = Feed()
+    #feed.loadFromURL('http://imbibemagazine.com/category/article/cocktails-spirits-article/feed')
+    # this hbr feed is a good example of a feed that fails
+    #feed.loadFromURL('https://feeds.hbr.org/harvardbusiness')
+    #feed.loadFromURL('https://ny.eater.com/rss/index.xml')
+    #feed.loadFromURL('http://feeds.feedburner.com/DilbertDailyStrip')
+    feed.loadFromURL('https://lifehacker.com/rss')
+    printFeed(feed)
+    feed.save()

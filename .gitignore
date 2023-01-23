@@ -2,6 +2,7 @@
 .*~
 .*.swp
 *.pyc
+package-lock.json
 node_modules
 bower_components
 .DS_Store

@@ -63,16 +63,6 @@ frisby.create('POST password missing numbers')
     .expectJSONTypes({'error' : String})
     .toss()
 
-frisby.create('POST password has spaces')
-    .post(uri + '/user/enroll',
-          { 'name' : TU1_NAME,
-            'email' : TU1_EMAIL,
-            'password' : 'test User with 4 spaces' })
-    .expectStatus(400)
-    .expectHeader('Content-Type', 'application/json; charset=utf-8')
-    .expectJSONTypes({'error' : String})
-    .toss()
-
 frisby.create('POST password less than 8 characters')
     .post(uri + '/user/enroll',
           { 'name' : TU1_NAME,

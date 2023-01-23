@@ -17,7 +17,7 @@ module.exports.addAPIRouter = function(config, app, mongoose) {
     var fc = new FeedController(app, mongoose);
 
     app.use('/api/v1.0/', ac.addAuthAPIRouter(app));
-    app.use('/api/v1.0/', uc.addUserEnrollAPIRouter(app));
+    app.use('/api/v1.0/', uc.addUserAPIRouter(app));
     app.use('/api/v1.0/', passport.authenticate('jwt', {session: false}), fc.addFeedAPIRouter(app));
 
     // router.use(function(req, res, next) {

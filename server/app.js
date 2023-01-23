@@ -12,6 +12,7 @@ assert(
 
 var express = require('express');
 var mongoose = require('mongoose');
+mongoose.set('strictQuery', true);
 
 var elasticsearch = require('elasticsearch');
 var fs = require('fs');
@@ -30,6 +31,7 @@ var app = express();
 require('./config/express')(app);
 
 // Connect to database
+console.log(app.get('config').mongo.uri + '/' + app.get('config').mongo.db);
 mongoose.connect(
     app.get('config').mongo.uri + '/' + app.get('config').mongo.db,
     app.get('config').mongo.options

@@ -2,7 +2,7 @@ mode: dev
 logging:
     path: $root/logs
 db:
-    url: mongodb://localhost
+    url: mongodb://127.0.0.1
     dbName: reader-dev
 es:
     host: 192.168.93.197

@@ -32,7 +32,7 @@ writeCredsArray = [
         });
     },
     function getUserTokens(callback) {
-        console.log("getUserTokens");
+        console.log("getUserTokens, users_array.length=" + users_array.length);
         var numTokens = 0;
 
         users_array.forEach(function genToken(user, index, array) {
