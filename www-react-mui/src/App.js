@@ -35,7 +35,7 @@ const App = (props) => {
             })
             .then((res) => {
                 console.log(
-                    res.status + "result from calling /auth/google api"
+                    res.status + " result from calling /auth/google api"
                 );
                 console.log(res);
                 if (res.status == 200) {
