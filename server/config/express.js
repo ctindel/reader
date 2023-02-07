@@ -42,7 +42,14 @@ module.exports = function(app) {
   app.use(methodOverride());
   app.use(cookieParser());
 
-  var allowCrossDomain = function(req, res, next) {
+  var cors = require('cors');
+  // We return the user's token in the header after the auth controller, so we need to expose it
+  const corsOptions = {
+    exposedHeaders: ['x-auth-token'],
+  };
+
+  app.use(cors());
+/*   var allowCrossDomain = function(req, res, next) {
       //console.dir(req);
       res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
       res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
@@ -51,7 +58,7 @@ module.exports = function(app) {
 
       next();
   }
-  app.use(allowCrossDomain);
+  app.use(allowCrossDomain); */
 
   if ('prod' === env) {
     app.use(favicon(path.join(config.root, 'public', 'favicon.ico')));

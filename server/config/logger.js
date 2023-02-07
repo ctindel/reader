@@ -7,7 +7,7 @@ var options = {
   file: {
     level: 'debug',
     //filename: `${appRoot}/logs/app.log`,
-    filename: '/Users/ctindel/reader.log',
+    filename: '/tmp/reader.log',
     handleExceptions: false,
     json: true,
     maxsize: 5242880, // 5MB

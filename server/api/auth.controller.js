@@ -1,10 +1,15 @@
-var express = require('express');
-var passport = require('passport');
-var GoogleTokenStrategy = require('passport-google-token').Strategy;
-var LocalStrategy = require('passport-local').Strategy;
+const express = require('express');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const {
+    OAuth2Client,
+  } = require('google-auth-library');
 const passportJWT = require("passport-jwt");
-const JWTStrategy   = passportJWT.Strategy;
-const ExtractJWT = passportJWT.ExtractJwt;var jwt = require('jsonwebtoken');
+const JWTStrategy = passportJWT.Strategy;
+const ExtractJWT = passportJWT.ExtractJwt;
+const jwt = require('jsonwebtoken');
+const jwt_decode = require('jwt-decode');
+
 
 module.exports = AuthController;
 
@@ -22,9 +27,9 @@ function AuthController(app, mongoose) {
     _logger = app.get('readerLogger');
 }
 
-var createToken = function(auth) {
+var createToken = function(email) {
     return jwt.sign({
-            id: auth.id
+            email: email
         }, _app.get('config').jwt.secret,
         {
             expiresIn: 60 * 120
@@ -33,19 +38,27 @@ var createToken = function(auth) {
 };
 
 var generateToken = function(req, res, next) {
-      req.token = createToken(req.auth);
-      return next();
+    req.token = createToken(req.user.email);
+    return next();
 }
 
 var sendToken = function(req, res) {
+    res.setHeader('Access-Control-Expose-Headers', 'x-auth-token');
     res.setHeader('x-auth-token', req.token);
     return res.status(200).send(JSON.stringify(req.user));
 }
 
 AuthController.prototype.addAuthAPIRouter = function(app) {
     var router = express.Router();
+    var errStr;
 
-    passport.use(new GoogleTokenStrategy({
+    const oAuth2Client = new OAuth2Client(
+        app.get('config').googleAuth.clientID,
+        app.get('config').googleAuth.clientSecret,
+        'postmessage',
+      );
+
+/*     passport.use(new GoogleTokenStrategy({
             clientID: app.get('config').googleAuth.clientID,
             clientSecret: app.get('config').googleAuth.clientSecret,
             callbackURL: app.get('config').googleAuth.callbackURL
@@ -55,7 +68,7 @@ AuthController.prototype.addAuthAPIRouter = function(app) {
                 return done(err, user);
             });
         }
-    ));
+    )); */
 
     if (process.env.NODE_ENV == 'dev') {
         console.log("NODE_ENV=" + process.env.NODE_ENV + ", Adding passport LocalStrategy");
@@ -81,7 +94,7 @@ AuthController.prototype.addAuthAPIRouter = function(app) {
             secretOrKey   : app.get('config').jwt.secret
         },
         function (jwtPayload, cb) {
-            return _UserModel.findById(jwtPayload.id)
+            return _UserModel.findById(jwtPayload.email)
             .then(user => {
                 return cb(null, user);
             })
@@ -92,13 +105,38 @@ AuthController.prototype.addAuthAPIRouter = function(app) {
     ));
 
     router.route('/auth/google')
-        .post(passport.authenticate('google-token', {session: false}), function(req, res, next) {
-            if (!req.user) {
-                return res.send(401, 'User Not Authenticated');
+        .post(async (req, res, next) => {
+            _logger.info('/auth/google request body: ' + JSON.stringify(req.body));
+            var decodedJwt = jwt.decode(req.body.credential, app.get('config').googleAuth.clientSecret);
+            _logger.info('/auth/google decodedJWT: ' + JSON.stringify(decodedJwt));
+
+            try {
+                const ticket = await oAuth2Client.verifyIdToken({
+                    idToken: req.body.credential,
+                    audience: app.get('config').googleAuth.clientID
+                }); 
+                // Get the JSON with all the user info
+                const payload = ticket.getPayload();
+                _logger.info('Google oAuth Ticket info: ' + JSON.stringify(payload));
+                if (payload.aud != app.get('config').googleAuth.clientID) {
+                    errStr = `Payload audience {payload.aud} does not match clientID {app.get('config').googleAuth.clientID}`;
+                    _logger.info(errStr);
+                    return res.status(401).send(errStr);
+                }
+                if (!payload.email_verified) {
+                    errStr = `User {payload.email} has not validated their email address with Google`;
+                    _logger.info(errStr);
+                    return res.status(401).send(errStr);
+                }
+                req.user = await _UserModel.upsertGoogleUser(req.body.credential, payload);
+            } catch (err) {
+                _logger.error("auth/google error: " + err);
+                return res.status(401).send('Error Validating Google OAuth Token for ' + decodedJwt.email);
             }
-            req.auth = {
-                id: req.user.id
-            };
+            
+            if (!req.user) {
+                return res.status(401).send('User Not Authenticated');
+            }
 
             next();
         }, generateToken, sendToken);
@@ -107,11 +145,8 @@ AuthController.prototype.addAuthAPIRouter = function(app) {
         router.route('/auth/local')
             .post(passport.authenticate('local', {session: false}), function(req, res, next) {
                 if (!req.user) {
-                    return res.send(401, 'User Not Authenticated');
+                    return res.status(401).send('User Not Authenticated');
                 }
-                req.auth = {
-                    id: req.user.id
-                };
 
                 next();
             }, generateToken, sendToken);

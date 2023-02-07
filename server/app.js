@@ -14,10 +14,10 @@ var express = require('express');
 var mongoose = require('mongoose');
 mongoose.set('strictQuery', true);
 
-var elasticsearch = require('elasticsearch');
 var fs = require('fs');
 
 // Connect to Elastic Search
+// var elasticsearch = require('elasticsearch');
 // var elasticClient = new elasticsearch.Client({
 //     host: config.es.host,
 //     log: config.es.logLevel,
@@ -43,7 +43,6 @@ if (process.env.NODE_ENV === 'dev') {
 
 app.set('mongoose', mongoose);
 // app.set('elasticClient', elasticClient);
-
 
 var server = require('http').createServer(app);
 require('./routes')(app.get('config'), app, mongoose);

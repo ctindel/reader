@@ -1,5 +1,7 @@
 "use strict";
 
+var validator = require('validator');
+
 module.exports = function(mongoose) {
 
     var userSchema = new mongoose.Schema({
@@ -17,10 +19,9 @@ module.exports = function(mongoose) {
         },
         googleProvider: {
             type: {
-                id: String,
-                token: String
-            },
-            select: false
+                googleJWT: String,
+                googleVerifiedToken: String,
+            }
         }
     },
     { collection: 'user', strict: true }
@@ -28,38 +29,33 @@ module.exports = function(mongoose) {
 
     userSchema.index({email : 1}, {unique:true, strict: true});
 
-    userSchema.statics.upsertGoogleUser = function(accessToken, refreshToken, profile, cb) {
+    userSchema.statics.upsertGoogleUser = async function(googleJWT, googleVerifiedToken) {
         var that = this;
-        return this.findOne({
-            'googleProvider.id': profile.id
-        }, function(err, user) {
-            // no user was found, lets create a new one
-            if (!user) {
-                var newUser = new that({
-                    fullName: profile.displayName,
-                    email: profile.emails[0].value,
-                    googleProvider: {
-                        id: profile.id,
-                        token: accessToken
-                    }
-                });
 
-                newUser.save(function(error, savedUser) {
-                    if (error) {
-                        console.error(error);
-                    }
-                    return cb(error, savedUser);
-                });
-            } else {
-                user.googleProvider.token = accessToken;
-                user.save(function(error, savedUser) {
-                    if (error) {
-                        console.error(error);
-                    }
-                    return cb(error, savedUser);
-                });
-            }
+        if (!validator.isEmail(googleVerifiedToken.email)) {
+            throw new Error(`Invalid email format {googleJWT.email}`);
+        }
+        var user = await this.findOne({
+            'email': googleVerifiedToken.email
         });
+
+        // no user was found, lets create a new one
+        if (!user) {
+            user = new that({
+                fullName: googleVerifiedToken.name,
+                email: googleVerifiedToken.email,
+                googleProvider: {
+                    googleJWT: googleJWT,
+                    googleVerifiedToken: JSON.stringify(googleVerifiedToken)
+                }
+            });
+
+        } else {
+            user.lastLogin = Date.now();
+            user.googleProvider.googleJWT = googleJWT;
+        }
+        await user.save();
+        return user;
     };
 
     userSchema.statics.upsertLocalUser = function(email, password, cb) {
