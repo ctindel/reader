@@ -58,7 +58,7 @@ var loadExpressConfig = async function (app) {
     var secrets = await getAllSecrets();
     parseSecrets(secrets);
 
-    console.log(envConfig);
+    //console.log(envConfig);
     app.set("config", envConfig);
     app.set("readerLogger", logger);
 

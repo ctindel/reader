@@ -1,6 +1,16 @@
 import React, { useState } from "react";
 import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import axios from "axios";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import Avatar from "@mui/material/Avatar";
+import CssBaseline from "@mui/material/CssBaseline";
+import Box from "@mui/material/Box";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import Typography from "@mui/material/Typography";
+import Container from "@mui/material/Container";
+import ReaderApp from "./ReaderApp";
+
+const theme = createTheme();
 
 const App = (props) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -26,6 +36,14 @@ const App = (props) => {
     } else {
         console.log("There was no myUser object in sessionStorage");
     }
+
+    const logout = () => {
+        sessionStorage.removeItem("myUser");
+        sessionStorage.removeItem("myToken");
+        setIsLoggedIn(false);
+        setUserInfo({});
+        setUserToken("");
+    };
 
     const onSuccess = (response) => {
         console.log(response);
@@ -70,14 +88,37 @@ const App = (props) => {
         <div>
             <GoogleOAuthProvider clientId="104972086559-jdn01f6df88cne9ip3qduc205u1p1p3r.apps.googleusercontent.com">
                 {isLoggedIn ? (
-                    <>
-                        <p>Welcome {userInfo.email}!</p>
-                    </>
+                    <ReaderApp />
                 ) : (
-                    <GoogleLogin
-                        onSuccess={onSuccess}
-                        onError={onError}
-                    ></GoogleLogin>
+                    <ThemeProvider theme={theme}>
+                        <Container component="main" maxWidth="xs">
+                            <CssBaseline />
+                            <Box
+                                sx={{
+                                    marginTop: 8,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                }}
+                            >
+                                <Avatar
+                                    sx={{ m: 1, bgcolor: "secondary.main" }}
+                                >
+                                    <LockOutlinedIcon />
+                                </Avatar>
+                                <Typography component="h1" variant="h6">
+                                    If you don't see a Sign in With Google
+                                    Button, try disabling your ad blocker or
+                                    privacy badger extension for this site.
+                                </Typography>
+
+                                <GoogleLogin
+                                    onSuccess={onSuccess}
+                                    onError={onError}
+                                ></GoogleLogin>
+                            </Box>
+                        </Container>
+                    </ThemeProvider>
                 )}
             </GoogleOAuthProvider>
         </div>
