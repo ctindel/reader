@@ -14,6 +14,7 @@ osascript <<END_SCRIPT
   tell application "iTerm"
     activate
     set newWindow to (create window with default profile)
+    set bounds of newWindow to {0, 0, 800, 1024}
     repeat 4 times
       tell newWindow
         set newTab to (create tab with default profile)
@@ -36,6 +37,11 @@ osascript <<END_SCRIPT
     end tell
   end tell
 END_SCRIPT
+
+until nc -z localhost 27017
+do
+    sleep 1
+done
 
 # Start mongosh in second tab
 osascript <<END_SCRIPT
@@ -73,3 +79,18 @@ osascript <<END_SCRIPT
   end tell
 END_SCRIPT
 
+sleep 3
+
+# Re-open iTerm after the react app brings the browser to focus
+osascript <<END_SCRIPT
+  tell application "iTerm"
+    activate
+  end tell
+END_SCRIPT
+
+# Open Visual Studio Code
+osascript <<END_SCRIPT
+  tell application "Visual Studio Code"
+    activate
+  end tell
+END_SCRIPT
